@@ -1,5 +1,5 @@
-appId: 'ee.trimatech.tockler'
-productName: 'Tockler'
+appId: 'com.gitstart.devtime'
+productName: 'DevTime'
 asar: false
 asarUnpack:
     - scripts

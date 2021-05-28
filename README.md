@@ -1,3 +1,7 @@
+> This project is based on [Tockler](https://github.com/MayGo/tockler)
+
+# Tockler README
+
 <!-- DONATELINKS -->
 
 [![Donate using PayPal](https://github.com/MayGo/tockler/raw/master/badges/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=JAHHBZZCZVDMA)

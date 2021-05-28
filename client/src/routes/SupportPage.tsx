@@ -84,11 +84,13 @@ export function SupportPage({ location }: any) {
                 )}
             </Box>
             <Box p={4} width={0.5}>
-                <Title level={3}>Support Tockler</Title>
+                <Title level={3}>Support the original project (Tockler)</Title>
                 <Paragraph>
-                    This app is made in my own free time and often at expense of family, friends,
-                    and sleep. I would like to keep this app free, open-source, and improving over
-                    time. But for that, your support is needed.
+                    This app is made based on an open-source project by{' '}
+                    <a href="https://github.com/MayGo/tockler">@MayGo</a>. It is done in their own
+                    free time and often at expense of family, friends, and sleep. They would like to
+                    keep this app free, open-source, and improving over time. But for that, your
+                    support is needed.
                 </Paragraph>
                 <Paragraph>
                     It is understandable if you can't give anything. You can always give some
@@ -96,7 +98,7 @@ export function SupportPage({ location }: any) {
                 </Paragraph>
                 <Paragraph>
                     So if you find this app useful then feel free to donate. Anything helps to keep
-                    this app up to date and always improving. I don't plan to get rich with that,
+                    this app up to date and always improving. They don't plan to get rich with that,
                     need to justify working on this.
                 </Paragraph>
                 <Flex p={1}>
