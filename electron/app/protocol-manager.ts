@@ -23,7 +23,7 @@ export abstract class ProtocolUtils {
     /**
      * @description Create logic (WIN32 and Linux) for open url from protocol
      */
-    public static setProtocolHandlerWindowsLinux(): void {
+    public static setProtocolHandlerWindowsLinux(deeplinkCallback: (rawUrl: string) => void): void {
         // Force Single Instance Application
         // const gotTheLock = app.requestSingleInstanceLock();
 
