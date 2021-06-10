@@ -51,36 +51,22 @@ export abstract class ProtocolUtils {
         // } else {
         //     app.quit();
         // }
-        app.whenReady().then(() => {
-            const rawUrl = this._getDeepLinkUrl();
-            deeplinkCallback(rawUrl);
-        });
+        // app.on('second-instance', (event, commandLine, workingDirectory) => {
+            // console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+            // app.whenReady().then(() => {
+            //     const rawUrl = this._getDeepLinkUrl();
+            //     deeplinkCallback(rawUrl);
+            // });
+        // });
+        
     }
 
     /**
      * @description Create logic (OSX) for open url from protocol
      */
-    public static setProtocolHandlerOSX(): void {
-        // app.on('open-url', (event: Electron.Event, url: string) => {
-        //     event.preventDefault();
-        //     app.whenReady().then(() => {
-        //         if (!isNil(url)) {
-        //             // Open main windows
-        //             MainWindow.openMainWindow();
-        //             MainWindow.mainWindow.loadURL(this._getUrlToLoad(url));
-        //         } else {
-        //             this._logInMainWindow({ s: 'URL is undefined', isError: true });
-        //             throw new Error('URL is undefined');
-        //         }
-        //     });
-        // });
+    public static setProtocolHandlerOSX(deeplinkCallback: (rawUrl: string) => void): void {
         app.on('open-url', (_, rawUrl) => {
-            console.log("on.('open-url'):", rawUrl);
-            const url = new URL(rawUrl);
-    
-            if (url.searchParams.has('token')) {
-                settingsService.updateLoginSettings({ token: url.searchParams.get('token') });
-            }
+            deeplinkCallback(rawUrl);
         });
     }
 
@@ -109,6 +95,7 @@ export abstract class ProtocolUtils {
     * @param argv: An array of the second instance’s (command line / deep linked) arguments
     */
     private static _getDeepLinkUrl(argv?: string[]): string {
+        console.log('getDeepLink-----------------------');
         let url: string;
         const newArgv: string[] = !isNil(argv) ? argv : process.argv;
         // Protocol handler
