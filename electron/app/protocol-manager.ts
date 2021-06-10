@@ -3,9 +3,9 @@ import { app, ipcMain, powerMonitor } from 'electron';
 import { settingsService } from './services/settings-service';
 import { appConstants } from './app-constants';
 import WindowManager from './window-manager';
-const { Deeplink } = require('electron-deeplink');
+// const { Deeplink } = requDeeplinkire('electron-deeplink');
 
-const deeplink = new Deeplink({ app })
+// const deeplink = new Deeplink({ app })
 
 function isNil(value) {
     return value == null
