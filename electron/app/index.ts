@@ -114,14 +114,22 @@ if (!gotTheLock) {
     // This sets up protocol registration. If not working when developing on Windows, please see: https://stackoverflow.com/questions/45809064/registering-custom-protocol-at-installation-process-in-electron-app
     app.setAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
 
+    const deeplinkCallback = (rawUrl) => {
+      console.log("on.('open-url'):", rawUrl);
+      const url = new URL(rawUrl);
+
+       if (url.searchParams.has('token')) {
+           settingsService.updateLoginSettings({ token: url.searchParams.get('token') });
+       }
+    }
     switch (process.platform) {
         case 'darwin':
-            ProtocolUtils.setProtocolHandlerOSX();
+            ProtocolUtils.setProtocolHandlerOSX(deeplinkCallback);
             break;
         case 'linux':
         case 'win32':
             console.log('windows/linux');
-            ProtocolUtils.setProtocolHandlerWindowsLinux();
+            ProtocolUtils.setProtocolHandlerWindowsLinux(deeplinkCallback);
             break;
         default:
             throw new Error('Process platform is undefined');
