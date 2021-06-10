@@ -15,7 +15,7 @@ import { appConstants } from './app-constants';
 import { settingsService } from './services/settings-service';
 import { logService } from './services/log-service';
 import moment = require('moment');
-import { ProtocolUtils } from './protocol-manager.ts ';
+import { ProtocolUtils } from './protocol-manager';
 
 let logger = logManager.getLogger('AppIndex');
 app.setAppUserModelId(process.execPath);
