@@ -13,6 +13,8 @@ import AppUpdater from './app-updater';
 import config from './config';
 import { appConstants } from './app-constants';
 import { settingsService } from './services/settings-service';
+import { logService } from './services/log-service';
+import { Deeplink } from 'electron-deeplink';
 
 let logger = logManager.getLogger('AppIndex');
 app.setAppUserModelId(process.execPath);
@@ -105,18 +107,33 @@ if (!gotTheLock) {
         }
     });
 
-    // This makes sure to have a fresh registration everytime.
-    app.removeAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
-
-    // This sets up protocol registration. If not working when developing on Windows, please see: https://stackoverflow.com/questions/45809064/registering-custom-protocol-at-installation-process-in-electron-app
-    app.setAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
-
-    app.on('open-url', (_, rawUrl) => {
-        console.log("on.('open-url'):", rawUrl);
-        const url = new URL(rawUrl);
-
-        if (url.searchParams.has('token')) {
-            settingsService.updateLoginSettings({ token: url.searchParams.get('token') });
-        }
+    const protocol = config.isDev
+        ? `${appConstants.PROTOCOL_NAME}-dev`
+        : appConstants.PROTOCOL_NAME;
+    const deeplink = new Deeplink({
+        app,
+        mainWindow: WindowManager.getMainWindow(),
+        protocol,
+        isDev: config.isDev,
+        electronPath: '/node_modules/electron/dist/Electron.app',
     });
+
+    deeplink.on('received', (link) => {
+        console.log(link);
+    });
+
+    // // This makes sure to have a fresh registration everytime.
+    // app.removeAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
+
+    // // This sets up protocol registration. If not working when developing on Windows, please see: https://stackoverflow.com/questions/45809064/registering-custom-protocol-at-installation-process-in-electron-app
+    // app.setAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
+
+    // app.on('open-url', (_, rawUrl) => {
+    //     console.log("on.('open-url'):", rawUrl);
+    //     const url = new URL(rawUrl);
+
+    //     if (url.searchParams.has('token')) {
+    //         settingsService.updateLoginSettings({ token: url.searchParams.get('token') });
+    //     }
+    // });
 }

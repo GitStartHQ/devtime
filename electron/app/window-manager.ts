@@ -181,7 +181,7 @@ export default class WindowManager {
          * https://github.com/maxogden/menubar
          */
         let icon = os.platform() === 'darwin' ? config.icon : config.iconBig;
-        
+
         // const contextMenu = Menu.buildFromTemplate([
         //     { label: 'Open', type: 'radio'},
         // ]);
@@ -244,6 +244,10 @@ export default class WindowManager {
                 autoUpdater.quitAndInstall();
             }
         });
+    }
+
+    static getMainWindow() {
+        return this.mainWindow;
     }
 }
 
