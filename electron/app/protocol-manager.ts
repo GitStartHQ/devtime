@@ -52,10 +52,8 @@ export abstract class ProtocolUtils {
         //     app.quit();
         // }
         app.whenReady().then(() => {
-            // Open main windows
-            console.log('whenReady');
-            WindowManager.openMainWindow();
-            WindowManager.mainWindow.loadURL(this._getDeepLinkUrl());
+            const rawUrl = this._getDeepLinkUrl();
+            deeplinkCallback(rawUrl);
         });
     }
 
