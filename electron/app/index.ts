@@ -15,6 +15,7 @@ import { appConstants } from './app-constants';
 import { settingsService } from './services/settings-service';
 import { logService } from './services/log-service';
 import moment = require('moment');
+import { ProtocolUtils } from './protocol-manager.ts ';
 
 let logger = logManager.getLogger('AppIndex');
 app.setAppUserModelId(process.execPath);
@@ -113,12 +114,25 @@ if (!gotTheLock) {
     // This sets up protocol registration. If not working when developing on Windows, please see: https://stackoverflow.com/questions/45809064/registering-custom-protocol-at-installation-process-in-electron-app
     app.setAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
 
-    app.on('open-url', (_, rawUrl) => {
-        console.log("on.('open-url'):", rawUrl);
-        const url = new URL(rawUrl);
+    switch (process.platform) {
+        case 'darwin':
+            ProtocolUtils.setProtocolHandlerOSX();
+            break;
+        case 'linux':
+        case 'win32':
+            console.log('windows/linux');
+            ProtocolUtils.setProtocolHandlerWindowsLinux();
+            break;
+        default:
+            throw new Error('Process platform is undefined');
+    }
 
-        if (url.searchParams.has('token')) {
-            settingsService.updateLoginSettings({ token: url.searchParams.get('token') });
-        }
-    });
+    // app.on('open-url', (_, rawUrl) => {
+    //     console.log("on.('open-url'):", rawUrl);
+    //     const url = new URL(rawUrl);
+
+    //     if (url.searchParams.has('token')) {
+    //         settingsService.updateLoginSettings({ token: url.searchParams.get('token') });
+    //     }
+    // });
 }

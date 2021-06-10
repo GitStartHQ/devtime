@@ -75,7 +75,7 @@ export class SaveToDbJob {
                     this.token = loginSettings.token;
                 }
             }
-
+            console.log(this.token);
             if (!process.env.HASURA_GRAPHQL_ENGINE_SECRET) {
                 // return early and wait for user to go through login flow which will add a token in the db.
                 if (!this.token) {

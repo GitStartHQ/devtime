@@ -33,6 +33,9 @@ mac:
 
 linux:
     category: Utility
+    mimeTypes: [x-scheme-handler/'GitStart DevTime'] # Define MimeType
+    desktop:
+        exec: 'GitStart DevTime'
     target:
         - AppImage
         - deb
