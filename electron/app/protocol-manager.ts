@@ -9,13 +9,13 @@ import { link } from 'fs';
 // const deeplink = new Deeplink({ app })
 
 // main.js
-const { BrowserWindow } = require('electron');
-const { Deeplink } = require('electron-deeplink');
-const isDev = require('electron-is-dev');
+// const { BrowserWindow } = require('electron');
+// const { Deeplink } = require('electron-deeplink');
+// const isDev = require('electron-is-dev');
 
-let mainWindow;
-const protocol = isDev ? 'dev-app' : 'prod-app';
-const deeplink = new Deeplink({ app, mainWindow, protocol, isDev });
+// let mainWindow;
+// const protocol = isDev ? 'dev-app' : 'prod-app';
+// const deeplink = new Deeplink({ app, mainWindow, protocol, isDev });
 
 function isNil(value) {
     return value == null
@@ -37,49 +37,37 @@ export abstract class ProtocolUtils {
         // Force Single Instance Application
         const gotTheLock = app.requestSingleInstanceLock();
 
-        app.on('second-instance', (e: Electron.Event, argv: string[]) => {
-            // Someone tried to run a second instance, we should focus our window.
-            console.log('in second-instance!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-            if (WindowManager.mainWindow) {
-                if (WindowManager.mainWindow.isMinimized()) WindowManager.mainWindow.restore();
-                WindowManager.mainWindow.focus();
-            } else {
-                // Open main windows
-                WindowManager.openMainWindow();
-            }
-
-            app.whenReady().then(() => {
-                WindowManager.mainWindow.loadURL(this._getDeepLinkUrl(argv));
-            });
-        });
-
-        app.whenReady().then(() => {
-            // open main windows
-            WindowManager.openMainWindow();
-            WindowManager.mainWindow.loadURL(this._getDeepLinkUrl());
-        })
-
-        // if (gotTheLock) {
-        //     app.whenReady().then(() => {
+        // app.on('second-instance', (e: Electron.Event, argv: string[]) => {
+        //     // Someone tried to run a second instance, we should focus our window.
+        //     console.log('in second-instance!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+        //     if (WindowManager.mainWindow) {
+        //         if (WindowManager.mainWindow.isMinimized()) WindowManager.mainWindow.restore();
+        //         WindowManager.mainWindow.focus();
+        //     } else {
         //         // Open main windows
         //         WindowManager.openMainWindow();
-        //         WindowManager.mainWindow.loadURL(this._getDeepLinkUrl());
-        //     });
-        // } else {
-        //     app.quit();
-        // }
+        //     }
 
-        // app.on('second-instance', (e: Electron.Event, argv: string[]) => {
-        //     console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
         //     app.whenReady().then(() => {
-        //         const rawUrl = this._getDeepLinkUrl();
-        //         deeplinkCallback(rawUrl);
+        //         WindowManager.mainWindow.loadURL(this._getDeepLinkUrl(argv));
         //     });
         // });
 
-        // deeplink.on('received', (link) =>{
-        //     console.log('deeplink receiving!!!!!!!!!!!!!!!');
+        // app.whenReady().then(() => {
+        //     // open main windows
+        //     WindowManager.openMainWindow();
+        //     WindowManager.mainWindow.loadURL(this._getDeepLinkUrl());
         // })
+
+        app.on('second-instance', (e: Electron.Event, argv: string[]) => {
+            console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+            app.whenReady().then(() => {
+                const rawUrl = this._getDeepLinkUrl();
+                deeplinkCallback(rawUrl);
+            });
+            WindowManager.openMainWindow();
+        });
+
     }
 
     /**
@@ -126,7 +114,7 @@ export abstract class ProtocolUtils {
                 console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
                 console.log(arg);
                 console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-                url = arg;
+                // url = arg;
                 if (/x-gitstart-devtime:\/\//.test(arg)) {
                     url = arg;
                     console.log('x-gitstart-devtime:///.testtttttttttttttt');
