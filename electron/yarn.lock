@@ -3541,6 +3541,15 @@ electron-context-menu@2.3.0:
     electron-dl "^3.0.0"
     electron-is-dev "^1.0.1"
 
+electron-deeplink@^1.0.6:
+  version "1.0.6"
+  resolved "https://registry.yarnpkg.com/electron-deeplink/-/electron-deeplink-1.0.6.tgz#1b3ef12c08834f73e69ec4c6a4530a4345e10fbf"
+  integrity sha512-9Wyp/LoFiOuONEtnPfkw6Mp8Q4VjTsg6aTnhS2H7dnpDjzIqyHacN+RhVzjMOUzBy7BadIAs7FuMYuEnVsRdAA==
+  dependencies:
+    bindings "^1.5.0"
+    electron-log "^4.2.3"
+    node-addon-api "^2.0.0"
+
 electron-devtools-installer@^3.1.1:
   version "3.2.0"
   resolved "https://registry.yarnpkg.com/electron-devtools-installer/-/electron-devtools-installer-3.2.0.tgz#acc48d24eb7033fe5af284a19667e73b78d406d0"
@@ -3565,7 +3574,7 @@ electron-is-dev@^1.0.1, electron-is-dev@^1.2.0:
   resolved "https://registry.yarnpkg.com/electron-is-dev/-/electron-is-dev-1.2.0.tgz#2e5cea0a1b3ccf1c86f577cee77363ef55deb05e"
   integrity sha512-R1oD5gMBPS7PVU8gJwH6CtT0e6VSoD0+SzSnYpNm+dBkcijgA+K7VAMHDfnRq/lkKPZArpzplTW6jfiMYosdzw==
 
-electron-log@^4.3.5:
+electron-log@^4.2.3, electron-log@^4.3.5:
   version "4.3.5"
   resolved "https://registry.yarnpkg.com/electron-log/-/electron-log-4.3.5.tgz#2aad5f93842b9b5214a1b4a10e47b5ac5c9ec104"
   integrity sha512-J5Ew3axdk7W4jzzxKLSAi1sqbcAoo9CzHuBVsG0tT47j256xKulNrWFf3lZmHJ1KDXOQUcuwOngQF0jjmpEdpw==

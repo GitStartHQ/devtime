@@ -2,45 +2,62 @@
 import { app, ipcMain, powerMonitor } from 'electron';
 import { settingsService } from './services/settings-service';
 import { appConstants } from './app-constants';
-import WindowManager from './window-manager';
+import WindowManager, { windowManager } from './window-manager';
+import { link } from 'fs';
 // const { Deeplink } = requDeeplinkire('electron-deeplink');
 
 // const deeplink = new Deeplink({ app })
+
+// main.js
+const { BrowserWindow } = require('electron');
+const { Deeplink } = require('electron-deeplink');
+const isDev = require('electron-is-dev');
+
+let mainWindow;
+const protocol = isDev ? 'dev-app' : 'prod-app';
+const deeplink = new Deeplink({ app, mainWindow, protocol, isDev });
 
 function isNil(value) {
     return value == null
   }
 
 export abstract class ProtocolUtils {
-    // public static setDefaultProtocolClient(): void {
-    //     if (!app.isDefaultProtocolClient(appConstants.PROTOCOL_NAME)) {
-    //         // Define custom protocol handler.
-    //         // Deep linking works on packaged versions of the application!
-    //         app.setAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
-    //     }
-    // }
+    public static setDefaultProtocolClient(): void {
+        if (!app.isDefaultProtocolClient(appConstants.PROTOCOL_NAME)) {
+            // Define custom protocol handler.
+            // Deep linking works on packaged versions of the application!
+            app.setAsDefaultProtocolClient(appConstants.PROTOCOL_NAME);
+        }
+    }
 
     /**
      * @description Create logic (WIN32 and Linux) for open url from protocol
      */
     public static setProtocolHandlerWindowsLinux(deeplinkCallback: (rawUrl: string) => void): void {
         // Force Single Instance Application
-        // const gotTheLock = app.requestSingleInstanceLock();
+        const gotTheLock = app.requestSingleInstanceLock();
 
-        // app.on('second-instance', (e: Electron.Event, argv: string[]) => {
-        //     // Someone tried to run a second instance, we should focus our window.
-        //     if (WindowManager.mainWindow) {
-        //         if (WindowManager.mainWindow.isMinimized()) WindowManager.mainWindow.restore();
-        //         WindowManager.mainWindow.focus();
-        //     } else {
-        //         // Open main windows
-        //         WindowManager.openMainWindow();
-        //     }
+        app.on('second-instance', (e: Electron.Event, argv: string[]) => {
+            // Someone tried to run a second instance, we should focus our window.
+            console.log('in second-instance!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+            if (WindowManager.mainWindow) {
+                if (WindowManager.mainWindow.isMinimized()) WindowManager.mainWindow.restore();
+                WindowManager.mainWindow.focus();
+            } else {
+                // Open main windows
+                WindowManager.openMainWindow();
+            }
 
-        //     app.whenReady().then(() => {
-        //         WindowManager.mainWindow.loadURL(this._getDeepLinkUrl(argv));
-        //     });
-        // });
+            app.whenReady().then(() => {
+                WindowManager.mainWindow.loadURL(this._getDeepLinkUrl(argv));
+            });
+        });
+
+        app.whenReady().then(() => {
+            // open main windows
+            WindowManager.openMainWindow();
+            WindowManager.mainWindow.loadURL(this._getDeepLinkUrl());
+        })
 
         // if (gotTheLock) {
         //     app.whenReady().then(() => {
@@ -51,14 +68,18 @@ export abstract class ProtocolUtils {
         // } else {
         //     app.quit();
         // }
-        // app.on('second-instance', (event, commandLine, workingDirectory) => {
-            // console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-            // app.whenReady().then(() => {
-            //     const rawUrl = this._getDeepLinkUrl();
-            //     deeplinkCallback(rawUrl);
-            // });
+
+        // app.on('second-instance', (e: Electron.Event, argv: string[]) => {
+        //     console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+        //     app.whenReady().then(() => {
+        //         const rawUrl = this._getDeepLinkUrl();
+        //         deeplinkCallback(rawUrl);
+        //     });
         // });
-        
+
+        // deeplink.on('received', (link) =>{
+        //     console.log('deeplink receiving!!!!!!!!!!!!!!!');
+        // })
     }
 
     /**
@@ -102,8 +123,13 @@ export abstract class ProtocolUtils {
         if (process.platform === 'win32' || process.platform === 'linux') {
             // Get url form precess.argv
             newArgv.forEach((arg) => {
+                console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+                console.log(arg);
+                console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+                url = arg;
                 if (/x-gitstart-devtime:\/\//.test(arg)) {
                     url = arg;
+                    console.log('x-gitstart-devtime:///.testtttttttttttttt');
                 }
             });
             console.log('_getDeepLinkUrl');
