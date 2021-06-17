@@ -47,23 +47,23 @@ export const getLogDNAClient = (appName: LogDNAAppName) => {
     const _log = console.log;
     const _error = console.error;
   
-    // const log = function () {
-    //   // eslint-disable-next-line prefer-rest-params
-    //   logger.log([...arguments].join(' '));
-    //   // eslint-disable-next-line prefer-rest-params
-    //   _log.apply(console, [...arguments]);
-    // };
+    const log = function () {
+      // eslint-disable-next-line prefer-rest-params
+      logger.log([arguments].join(' '));
+      // eslint-disable-next-line prefer-rest-params
+      _log.apply(console, [arguments]);
+    };
   
-    // const error = function () {
-    //   // eslint-disable-next-line prefer-rest-params
-    //   logger.error([...arguments].join(' '));
-    //   // eslint-disable-next-line prefer-rest-params
-    //   _error.apply(console, [...arguments]);
-    // };
+    const error = function () {
+      // eslint-disable-next-line prefer-rest-params
+      logger.error([arguments].join(' '));
+      // eslint-disable-next-line prefer-rest-params
+      _error.apply(console, [arguments]);
+    };
   
-    // console.log = log;
-    // console.error = error;
-    logger.log('hello world');
+    console.log = log;
+    console.error = error;
+    logger.log('hello world-- LogDNA Enabled');
   
     console.log('LogDNA Enabled');
   };

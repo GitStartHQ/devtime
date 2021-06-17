@@ -9,17 +9,20 @@ import { setupFrontendListener } from 'eiphop';
 import { AppDataProvider } from './routes/AppDataProvider';
 import { StoreProvider } from 'easy-peasy';
 import { mainStore } from './store/mainStore';
+import { bindLogDNAWithConsole } from './utils';
 require('dotenv').config();
 
-const Logger = require('logdna');
+// const Logger = require('logdna');
 
-const logger = Logger.createLogger('33a02f1c20e286ca56534b48f0870447', {
-    hostname: 'app.logdna.com',
-    app: 'devtime',
-    index_meta: true
- });
+// const logger = Logger.createLogger('33a02f1c20e286ca56534b48f0870447', {
+//     hostname: 'app.logdna.com',
+//     app: 'devtime',
+//     index_meta: true
+//  });
 
- logger.log('logdna enable in devtime--hello world!');
+//  logger.log('logdna enable in devtime--hello world!');
+
+bindLogDNAWithConsole('devtime-client');
 
 (window as any).CSPSettings = {
     nonce: 'nonce',
