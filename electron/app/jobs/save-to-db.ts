@@ -214,8 +214,10 @@ export class SaveToDbJob {
                         .sort((a, b) => entityPriority[a.type] - entityPriority[b.type])[0];
 
                     if (
-                        mainEntityOfChunk.type !== 'other' &&
-                        mainEntityOfChunk.type !== 'learning'
+                        mainEntityOfChunk.type !== 'client_project' &&
+                        mainEntityOfChunk.type !== 'client' &&
+                        mainEntityOfChunk.type !== 'learning' &&
+                        mainEntityOfChunk.type !== 'other'
                     ) {
                         summary.push({
                             ...mainEntityOfChunk,
