@@ -105,16 +105,8 @@ export class SaveToDbJob {
     lastSavedUserWorklogsAt: Date = new Date();
     lastSavedSummary: (SummaryItem & { worklogId: number }) | null;
 
-    async run() {
+    async createAndSaveUserWorklogs() {
         try {
-            // if there is no cached token, check if sqlite Settings table has it.
-            if (!this.token) {
-                const loginSettings = await settingsService.getLoginSettings();
-                if (loginSettings?.token) {
-                    this.token = loginSettings.token;
-                }
-            }
-
             // save summarized events as user_worklogs
             // DO NOT use this code in a backend service, as it could be highly inneficient -- O(n * o * p * q * r * s * t) ~= O(n^6)
             if (this.token) {
@@ -429,7 +421,13 @@ export class SaveToDbJob {
 
                 console.log('Successfully upserted', numberOfWorklogsToUpsert, 'user worklogs');
             }
+        } catch (e) {
+            logErrors(e);
+        }
+    }
 
+    async saveUserEvents() {
+        try {
             // ------------------------------------
             // save individual userEvents
             const items = await TrackItem.query()
@@ -547,17 +545,38 @@ export class SaveToDbJob {
                 }
             }
         } catch (e) {
-            console.error(e);
-            logService
-                .createOrUpdateLog({
-                    type: 'ERROR',
-                    message: e.message,
-                    jsonData: e.toString(),
-                })
-                .catch(console.error);
+            logErrors(e);
         }
         console.log('-------------------------');
     }
+
+    async run() {
+        try {
+            // if there is no cached token, check if sqlite Settings table has it.
+            if (!this.token) {
+                const loginSettings = await settingsService.getLoginSettings();
+                if (loginSettings?.token) {
+                    this.token = loginSettings.token;
+                }
+            }
+
+            await this.createAndSaveUserWorklogs();
+            await this.saveUserEvents();
+        } catch (e) {
+            logErrors(e);
+        }
+    }
+}
+
+function logErrors(e: any) {
+    console.error(e);
+    logService
+        .createOrUpdateLog({
+            type: 'ERROR',
+            message: e.message,
+            jsonData: e.toString(),
+        })
+        .catch(console.error);
 }
 
 async function sendTrackItemsToDB(
