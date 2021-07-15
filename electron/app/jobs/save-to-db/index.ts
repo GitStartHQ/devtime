@@ -1,114 +1,41 @@
 import moment = require('moment');
-import { appConstants } from '../app-constants';
-import config from '../config';
-import { fetchGraphQLClient, getUserFromToken } from '../graphql';
-import { logManager } from '../log-manager';
-import { TrackItem } from '../models/TrackItem';
-import { logService } from '../services/log-service';
-import { settingsService } from '../services/settings-service';
-import { trackItemService } from '../services/track-item-service';
-
-let logger = logManager.getLogger('BackgroundJob');
-
-// HACK: temporary hack to upsert to hasura
-declare type hasura_uuid = string;
-declare type hasura_timestamptz = string;
-export enum user_event_types_enum {
-    app_use = 'app_use',
-    browse_url = 'browse_url',
-    end_day = 'end_day',
-    file_edit = 'file_edit',
-    start_day = 'start_day',
-    task_pause = 'task_pause',
-    task_resume = 'task_resume',
-    ticket_pause = 'ticket_pause',
-    ticket_resume = 'ticket_resume',
-}
-export type user_events_insert_input = {
-    appName?: string | null;
-    title?: string | null;
-    browserUrl?: string | null;
-    clientId?: string | null;
-    clientProjectId?: number | null;
-    createdAt?: hasura_timestamptz | null;
-    deletedAt?: hasura_timestamptz | null;
-    duration?: number | null;
-    eventType?: user_event_types_enum | null;
-    filePath?: string | null;
-    gitBranchRef?: string | null;
-    gitCommitHash?: string | null;
-    gitOwner?: string | null;
-    gitRelativeFilePath?: string | null;
-    gitRepoName?: string | null;
-    id?: hasura_uuid | null;
-    occurredAt?: hasura_timestamptz | null;
-    pollInterval?: number | null;
-    taskId?: number | null;
-    ticketId?: number | null;
-    updatedAt?: hasura_timestamptz | null;
-    userId?: number | null;
-};
-
-export type work_log_approval_status_types_enum =
-    | 'approved'
-    | 'auto'
-    | 'rejected'
-    | 'under_review'
-    | '%future added value';
-export type work_log_meeting_types_enum =
-    | 'all_hands'
-    | 'client_call'
-    | 'daily_standup'
-    | 'team_retrospective'
-    | 'weekly_demos'
-    | '%future added value';
-export type work_log_status_types_enum =
-    | 'confirmed'
-    | 'locked'
-    | 'needs_confirmation'
-    | '%future added value';
-export type work_log_types_enum =
-    | 'client'
-    | 'client_billed'
-    | 'client_project'
-    | 'learning'
-    | 'meeting'
-    | 'other'
-    | 'task'
-    | 'ticket'
-    | '%future added value';
-export type user_work_logs_insert_input = {
-    approvalStatus?: work_log_approval_status_types_enum | null;
-    billableToClient?: boolean | null;
-    clientId?: string | null;
-    clientProjectId?: number | null;
-    createdAt?: string | null;
-    deletedAt?: string | null;
-    endAt?: string | null;
-    id?: number | null;
-    meetingType?: work_log_meeting_types_enum | null;
-    source?: string | null;
-    startAt?: string | null;
-    status?: work_log_status_types_enum | null;
-    taskId?: number | null;
-    technologyId?: number | null;
-    ticketId?: number | null;
-    updatedAt?: string | null;
-    userId?: number | null;
-    workDescription?: string | null;
-    workType?: work_log_types_enum | null;
-};
+import { Model } from 'objection';
+import { appConstants } from '../../app-constants';
+import config from '../../config';
+import { fetchGraphQLClient, getUserFromToken } from '../../graphql';
+import { TrackItem } from '../../models/TrackItem';
+import { logService } from '../../services/log-service';
+import { settingsService } from '../../services/settings-service';
+import { trackItemService } from '../../services/track-item-service';
+import { hasura_uuid, user_events_insert_input, user_work_logs_insert_input } from './types';
 
 export class SaveToDbJob {
-    token: string | null = null;
-    lastSavedUserEventsAt: Date = moment().subtract(14, 'days').toDate();
-    lastSavedUserWorklogsAt: Date = new Date();
-    lastSavedSummary: (SummaryItem & { worklogId: number }) | null = null;
+    private token: string | null = null;
+    private lastSavedUserEventsAt: Date = moment().subtract(1, 'day').toDate();
+    private lastSavedUserWorklogsAt: Date = moment().subtract(1, 'day').toDate();
+    private lastSavedSummary: (SummaryItem & { worklogId: number }) | null = null;
     // TODO: turn this cache into a DB table
-    cachedPossibleEntities: PossibleEntities | null = null;
-    lastCachedPossibleEntitiesAt: Date = new Date();
+    private cachedPossibleEntities: PossibleEntities | null = null;
+    private lastCachedPossibleEntitiesAt: Date = new Date();
 
-    async createAndSaveUserWorklogs() {
+    async run() {
+        try {
+            // if there is no cached token, check if sqlite Settings table has it.
+            if (!this.token) {
+                const loginSettings = await settingsService.getLoginSettings();
+                if (loginSettings?.token) {
+                    this.token = loginSettings.token;
+                }
+            }
+
+            await this.createAndSaveUserWorklogs();
+            await this.saveUserEvents();
+        } catch (e) {
+            logErrors(e);
+        }
+    }
+
+    private async createAndSaveUserWorklogs() {
         try {
             // save summarized events as user_worklogs
             // DO NOT use this code in a backend service, as it could be highly inneficient -- O(n * o * p * q * r * s) ~= O(n^5)
@@ -455,41 +382,42 @@ export class SaveToDbJob {
         console.log('-------------------------');
     }
 
-    async saveUserEvents() {
+    private async saveUserEvents() {
         try {
-            // ------------------------------------
             // save individual userEvents
-            const items = await TrackItem.query()
-                .joinRaw(
-                    `LEFT JOIN Whitelist
-                    ON (
-                        (
-                            Whitelist.app IS NULL
-                            OR Whitelist.app = ''
-                            OR TrackItems.app LIKE '%' || Whitelist.app || '%'
-                        ) 
-                        AND (
-                            Whitelist.title IS NULL
-                            OR Whitelist.title = ''
-                            OR TrackItems.title LIKE '%' || Whitelist.title || '%'
-                        ) 
-                        AND (
-                            Whitelist.url IS NULL
-                            OR Whitelist.url = ''
-                            OR TrackItems.url LIKE '%' || Whitelist.url || '%'
-                        )
-                    )`,
+            const items: TrackItem[] = await Model.knex().raw(
+                `SELECT DISTINCT
+                    TrackItems.*
+                FROM TrackItems
+                LEFT JOIN Whitelist
+                ON (
+                    (
+                        Whitelist.app IS NULL
+                        OR Whitelist.app = ''
+                        OR TrackItems.app LIKE '%' || Whitelist.app || '%'
+                    ) 
+                    AND (
+                        Whitelist.title IS NULL
+                        OR Whitelist.title = ''
+                        OR TrackItems.title LIKE '%' || Whitelist.title || '%'
+                    ) 
+                    AND (
+                        Whitelist.url IS NULL
+                        OR Whitelist.url = ''
+                        OR TrackItems.url LIKE '%' || Whitelist.url || '%'
+                    )
                 )
-                .whereRaw(
-                    `"taskName" = 'AppTrackItem'
+                WHERE
+                    "taskName" = 'AppTrackItem'
                     AND Whitelist.id IS NOT NULL
                     AND (
                         "userEventId" IS NULL
                         OR TrackItems."updatedAt" >= ?
-                    )`,
-                    [this.lastSavedUserEventsAt],
-                )
-                .limit(100);
+                    )
+                LIMIT 100
+                `,
+                [this.lastSavedUserEventsAt],
+            );
             // FIXME: figure out how to do it with proper Knex `where` methods instead of `whereRaw` as it might be more "safe"
             // .where('taskName', 'AppTrackItem')
             // .whereNull('userEventId')
@@ -519,7 +447,6 @@ export class SaveToDbJob {
                 }
 
                 console.log('Successfully saved', items.length, `TrackItems to GitStart's DB`);
-                this.lastSavedUserEventsAt = new Date();
 
                 console.log('-------------------------');
 
@@ -536,6 +463,8 @@ export class SaveToDbJob {
                         );
                     }),
                 );
+
+                this.lastSavedUserEventsAt = new Date();
 
                 console.log('Successfully linked', items.length, `user_event with its TrackItem`);
             } else {
@@ -576,23 +505,6 @@ export class SaveToDbJob {
         }
         console.log('-------------------------');
     }
-
-    async run() {
-        try {
-            // if there is no cached token, check if sqlite Settings table has it.
-            if (!this.token) {
-                const loginSettings = await settingsService.getLoginSettings();
-                if (loginSettings?.token) {
-                    this.token = loginSettings.token;
-                }
-            }
-
-            await this.createAndSaveUserWorklogs();
-            await this.saveUserEvents();
-        } catch (e) {
-            logErrors(e);
-        }
-    }
 }
 
 function logErrors(e: any) {
@@ -614,22 +526,6 @@ async function sendTrackItemsToDB(
     secret?: string,
 ) {
     // HACK: temporary hack to upsert to hasura. Code can be much cleaner by turning this into a class.
-    const userEvents = items.map((event) => {
-        return {
-            ...(event.userEventId ? { id: event.userEventId } : {}),
-            userId,
-            updatedAt: new Date().toJSON(),
-            appName: event.app,
-            title: event.title,
-            browserUrl: event.url,
-            occurredAt: new Date(event.beginDate).toJSON(),
-            duration: Math.round(
-                (new Date(event.endDate).getTime() - new Date(event.beginDate).getTime()) / 1000,
-            ),
-            pollInterval: appConstants.TIME_TRACKING_JOB_INTERVAL / 1000, // ms to sec
-            eventType: event.url ? user_event_types_enum.browse_url : user_event_types_enum.app_use,
-        };
-    });
     const returned = await fetchGraphQLClient(domain, {
         token,
         secret,
@@ -640,7 +536,7 @@ async function sendTrackItemsToDB(
                 returning: { id: hasura_uuid }[];
             } | null;
         },
-        { userEvents: user_events_insert_input[] }
+        { userEvents: Array<user_events_insert_input> }
     >({
         operationAction: `
             mutation upsertUserEvents($userEvents: [user_events_insert_input!]!) {
@@ -662,7 +558,23 @@ async function sendTrackItemsToDB(
             }
         `,
         variables: {
-            userEvents,
+            userEvents: items.map((event) => {
+                return {
+                    ...(event.userEventId ? { id: event.userEventId } : {}),
+                    userId,
+                    updatedAt: new Date().toJSON(),
+                    appName: event.app,
+                    title: event.title,
+                    browserUrl: event.url,
+                    occurredAt: new Date(event.beginDate).toJSON(),
+                    duration: Math.round(
+                        (new Date(event.endDate).getTime() - new Date(event.beginDate).getTime()) /
+                            1000,
+                    ),
+                    pollInterval: appConstants.TIME_TRACKING_JOB_INTERVAL / 1000, // ms to sec
+                    eventType: event.url ? 'browse_url' : 'app_use',
+                };
+            }),
         },
     });
     return returned;
