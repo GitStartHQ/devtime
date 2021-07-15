@@ -103,12 +103,15 @@ export class SaveToDbJob {
     token: string | null = null;
     lastSavedUserEventsAt: Date = moment().subtract(14, 'days').toDate();
     lastSavedUserWorklogsAt: Date = new Date();
-    lastSavedSummary: (SummaryItem & { worklogId: number }) | null;
+    lastSavedSummary: (SummaryItem & { worklogId: number }) | null = null;
+    // TODO: turn this cache into a DB table
+    cachedPossibleEntities: PossibleEntities | null = null;
+    lastCachedPossibleEntitiesAt: Date = new Date();
 
     async createAndSaveUserWorklogs() {
         try {
             // save summarized events as user_worklogs
-            // DO NOT use this code in a backend service, as it could be highly inneficient -- O(n * o * p * q * r * s * t) ~= O(n^6)
+            // DO NOT use this code in a backend service, as it could be highly inneficient -- O(n * o * p * q * r * s) ~= O(n^5)
             if (this.token) {
                 const events = await TrackItem.query()
                     .whereRaw(
@@ -129,64 +132,80 @@ export class SaveToDbJob {
                     throw new Error('Token Expired!');
                 }
 
-                const possibleEntitiesData = await fetchGraphQLClient(
-                    process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
-                    {
-                        token: this.token,
-                    },
-                )<PossibleEntities, { after: string }>({
-                    operationAction: `
-                        query fetchPossibleEntities($after: timestamptz!) {
-                            tasks(where: {
-                                status: {_nin: [finished, cancelled]}
-                                createdAt: {_gte: $after}
-                            }) {
-                                id
-                                ticketCode
-                                taskCode
+                if (
+                    !this.cachedPossibleEntities ||
+                    moment().diff(this.lastCachedPossibleEntitiesAt, 'minutes') > 30
+                ) {
+                    const fetchPossibleEntities = await fetchGraphQLClient(
+                        process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
+                        {
+                            token: this.token,
+                        },
+                    )<PossibleEntities, { after: string }>({
+                        operationAction: `
+                            query FetchPossibleEntities($after: timestamptz!) {
+                                tasks(where: {
+                                    status: {_nin: [finished, cancelled]}
+                                    createdAt: {_gte: $after}
+                                }) {
+                                    id
+                                    ticketCode
+                                    taskCode
+                                    ticket {
+                                      id
+                                    }
+                                }
+    
+                                tickets(where: {
+                                    status: {_nin: [finished, cancelled]}
+                                    createdAt: {_gte: $after}
+                                }) {
+                                    id
+                                    code
+                                }
+    
+                                # skipping for now
+                                projects: client_projects(where: {
+                                    _or: [
+                                        {deletedAt: {_is_null: true}},
+                                        {deletedAt: {_gte: "now()"}}
+                                    ]
+                                }) @skip(if: true) {
+                                    id
+                                    name
+                                }
+    
+                                # skipping for now
+                                clients(where: {
+                                    _or: [
+                                        {churnedAt: {_is_null: true}},
+                                        {churnedAt: {_gte: "now()"}},
+                                    ]
+                                }) @skip(if: true) {
+                                    id
+                                    name
+                                }
                             }
-                            tickets(where: {
-                                createdAt: {_gte: $after}
-                            }) {
-                                id
-                                code
-                            }
-                            projects: client_projects(where: {
-                                _or: [
-                                    {deletedAt: {_is_null: true}},
-                                    {deletedAt: {_gte: "now()"}}
-                                ]
-                            }) {
-                                id
-                                name
-                            }
-                            clients(where: {
-                                _or: [
-                                    {churnedAt: {_is_null: true}},
-                                    {churnedAt: {_gte: "now()"}},
-                                ]
-                            }) {
-                                id
-                                name
-                            }
-                        }
-                    `,
-                    variables: {
-                        after: moment().subtract(15, 'days').toJSON(),
-                    },
-                });
+                        `,
+                        variables: {
+                            after: moment().subtract(15, 'days').toJSON(),
+                        },
+                    });
 
-                if ((possibleEntitiesData.errors?.length ?? 0) > 0) {
-                    throw new Error(
-                        `Error fetching possible entities from GitStart's DB | ${JSON.stringify(
-                            possibleEntitiesData.errors,
-                        )}`,
-                    );
+                    if ((fetchPossibleEntities.errors?.length ?? 0) > 0) {
+                        throw new Error(
+                            `Error fetching possible entities from GitStart's DB | ${JSON.stringify(
+                                fetchPossibleEntities.errors,
+                            )}`,
+                        );
+                    }
+
+                    this.cachedPossibleEntities = fetchPossibleEntities.data;
                 }
 
                 const chunks = chunkEvents(events, {
                     disableSorting: true,
-                    chunkEvery: 300, // chunks every 300 seconds (5 minutes)
+                    chunkEvery: 300, // chunks about every 300 seconds (5 minutes). If one activity lasts longer than 300 seconds, it is not split, instead the whole chunk only contains that one activity.
                 });
 
                 const summary = chunks.reduce<SummaryItem[]>((summary, chunk) => {
@@ -198,13 +217,19 @@ export class SaveToDbJob {
 
                     const mainEntityOfChunk = summarizedEvents
                         .map((event) =>
-                            mapKeywordsToEntity(possibleEntitiesData.data, [
-                                event.app,
-                                event.title,
-                            ]),
+                            mapKeywordsToEntity(
+                                {
+                                    ...this.cachedPossibleEntities,
+                                    // skipping projects and clients for now (graphql query currently skips projects and clients)
+                                    projects: [],
+                                    clients: [],
+                                },
+                                [event.app, event.title],
+                            ),
                         )
                         .sort((a, b) => entityPriority[a.type] - entityPriority[b.type])[0];
 
+                    // skipping client_project and client for now
                     if (
                         mainEntityOfChunk.type !== 'client_project' &&
                         mainEntityOfChunk.type !== 'client' &&
@@ -420,10 +445,14 @@ export class SaveToDbJob {
                 this.lastSavedUserWorklogsAt = new Date();
 
                 console.log('Successfully upserted', numberOfWorklogsToUpsert, 'user worklogs');
+            } else {
+                // wait for user to go through login flow which will add a token in the db.
+                console.log('Received no token. Waiting for user to login...');
             }
         } catch (e) {
             logErrors(e);
         }
+        console.log('-------------------------');
     }
 
     async saveUserEvents() {
@@ -509,11 +538,9 @@ export class SaveToDbJob {
                 );
 
                 console.log('Successfully linked', items.length, `user_event with its TrackItem`);
-                console.log('-------------------------');
             } else {
                 // wait for user to go through login flow which will add a token in the db.
                 console.log('Received no token. Waiting for user to login...');
-                console.log('-------------------------');
             }
 
             const stagingUserId = config.persisted.get('stagingUserId');
@@ -763,6 +790,9 @@ type PossibleEntities = {
         id: number;
         ticketCode: string;
         taskCode: string;
+        ticket: {
+            id: number;
+        } | null;
     }[];
     tickets: {
         id: number;
@@ -785,10 +815,15 @@ const mapKeywordsToEntity = (possibleEntities: PossibleEntities, keywords: strin
     const includes = (pattern: string) => {
         return new RegExp(pattern, 'gi').test(keywords.join(' ').replace('[Branch:', '')); // removing "[Branch:" from the keywords as that comes from the "Branch In Window Title" VS Code extension and one of the clients is named "Branch"
     };
+    // task and ticket are compared separately as the user might have different access on the tasks table than on the tickets table.
     for (const task of possibleEntities.tasks) {
         if (includes(task.ticketCode) && includes(task.taskCode)) {
             type = 'task';
             return { type, ...task };
+        } else if (includes(task.ticketCode) && task.ticket?.id) {
+            // It is possible for a user to have access to more tasks than tickets, so we can check tickets within the tasks array.
+            type = 'ticket';
+            return { type, id: task.ticket.id, code: task.ticketCode };
         }
     }
     for (const ticket of possibleEntities.tickets) {
