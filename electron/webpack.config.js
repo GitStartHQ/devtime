@@ -8,38 +8,38 @@ const Dotenv = require('dotenv-webpack');
 const nodeExternals = require('webpack-node-externals');
 
 module.exports = {
-    target: 'electron-main',
+  target: 'electron-main',
 
-    externals: [nodeExternals()],
+  externals: [nodeExternals()],
 
-    resolve: {
-        extensions: ['.ts', '.js'],
-    },
-    entry: {
-        index: path.resolve(__dirname, 'app', 'index.ts'),
-    },
-    output: {
-        path: path.resolve(__dirname, 'dist'),
-        filename: 'index.js',
-    },
+  resolve: {
+    extensions: ['.ts', '.js'],
+  },
+  entry: {
+    index: path.resolve(__dirname, 'app', 'index.ts'),
+  },
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'index.js',
+  },
 
-    node: {
-        __dirname: false,
-        __filename: false,
-    },
-    module: {
-        rules: [
-            {
-                test: /\.ts$/i,
-                loader: 'awesome-typescript-loader',
-            },
-        ],
-    },
-    plugins: [
-        new Dotenv(),
-        new FriendlyErrorsWebpackPlugin(),
-        new TsConfigPathsPlugin(),
-        new CheckerPlugin(),
-        new CopyPlugin({ patterns: ['preloadStuff.js'] }),
+  node: {
+    __dirname: false,
+    __filename: false,
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts$/i,
+        loader: 'awesome-typescript-loader',
+      },
     ],
+  },
+  plugins: [
+    new Dotenv(),
+    new FriendlyErrorsWebpackPlugin(),
+    new TsConfigPathsPlugin(),
+    new CheckerPlugin(),
+    new CopyPlugin({ patterns: ['preloadStuff.js'] }),
+  ],
 };

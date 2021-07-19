@@ -6,14 +6,14 @@ import { LineChart } from '../components/LineCharts/LineChart';
 import { LineChartBox } from '../components/LineCharts/LineCharts.styles';
 
 export function SummaryPage({ location }: any) {
-    return (
-        <MainLayout location={location}>
-            <SummaryProvider>
-                <SummaryCalendar />
-                <LineChartBox>
-                    <LineChart />
-                </LineChartBox>
-            </SummaryProvider>
-        </MainLayout>
-    );
+  return (
+    <MainLayout location={location}>
+      <SummaryProvider>
+        <SummaryCalendar />
+        <LineChartBox>
+          <LineChart />
+        </LineChartBox>
+      </SummaryProvider>
+    </MainLayout>
+  );
 }

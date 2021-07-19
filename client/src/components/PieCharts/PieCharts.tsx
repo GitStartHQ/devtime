@@ -9,43 +9,43 @@ import { WorkProgressChart } from './WorkProgressChart';
 import { useStoreState } from '../../store/easyPeasy';
 
 export const PieCharts = memo(() => {
-    const timeItems = useStoreState(state => state.timeItems);
-    const visibleTimerange = useStoreState(state => state.visibleTimerange);
+  const timeItems = useStoreState((state) => state.timeItems);
+  const visibleTimerange = useStoreState((state) => state.visibleTimerange);
 
-    const { workSettings } = useContext(RootContext);
-    const innerWidth = useWindowWidth();
+  const { workSettings } = useContext(RootContext);
+  const innerWidth = useWindowWidth();
 
-    const appItems = filterItems(timeItems.appItems, visibleTimerange);
-    const statusItems = filterItems(timeItems.statusItems, visibleTimerange);
+  const appItems = filterItems(timeItems.appItems, visibleTimerange);
+  const statusItems = filterItems(timeItems.statusItems, visibleTimerange);
 
-    const pieWidth = Math.min(innerWidth / 3, 200);
+  const pieWidth = Math.min(innerWidth / 3, 200);
 
-    return (
-        <div>
-            <Flex style={{ justifyContent: 'center' }}>
-                <Box>
-                    <Box>
-                        <PieChart items={statusItems} taskName="StatusTrackItem" width={pieWidth} />
-                    </Box>
-                    <Heading>Status</Heading>
-                </Box>
-                <Box>
-                    <Box>
-                        <WorkProgressChart
-                            hoursToWork={workSettings.hoursToWork}
-                            items={statusItems}
-                            width={pieWidth}
-                        />
-                    </Box>
-                    <Heading>Progress for {workSettings.hoursToWork}h</Heading>
-                </Box>
-                <Box>
-                    <Box>
-                        <PieChart items={appItems} taskName="AppTrackItem" width={pieWidth} />
-                    </Box>
-                    <Heading>App usage</Heading>
-                </Box>
-            </Flex>
-        </div>
-    );
+  return (
+    <div>
+      <Flex style={{ justifyContent: 'center' }}>
+        <Box>
+          <Box>
+            <PieChart items={statusItems} taskName="StatusTrackItem" width={pieWidth} />
+          </Box>
+          <Heading>Status</Heading>
+        </Box>
+        <Box>
+          <Box>
+            <WorkProgressChart
+              hoursToWork={workSettings.hoursToWork}
+              items={statusItems}
+              width={pieWidth}
+            />
+          </Box>
+          <Heading>Progress for {workSettings.hoursToWork}h</Heading>
+        </Box>
+        <Box>
+          <Box>
+            <PieChart items={appItems} taskName="AppTrackItem" width={pieWidth} />
+          </Box>
+          <Heading>App usage</Heading>
+        </Box>
+      </Flex>
+    </div>
+  );
 });

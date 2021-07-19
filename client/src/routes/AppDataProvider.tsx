@@ -5,22 +5,22 @@ import enGB from 'antd/es/locale/en_GB';
 export const AppDataContext = createContext({});
 
 export const AppDataProvider = ({ children }) => {
-    const [locale, setLocale] = useState(enGB);
+  const [locale, setLocale] = useState(enGB);
 
-    const defaultContext = {
-        locale,
-        setLocale,
-    };
+  const defaultContext = {
+    locale,
+    setLocale,
+  };
 
-    return <AppDataContext.Provider value={defaultContext}>{children}</AppDataContext.Provider>;
+  return <AppDataContext.Provider value={defaultContext}>{children}</AppDataContext.Provider>;
 };
 
 export const useAppDataState = () => {
-    const context = useContext(AppDataContext);
+  const context = useContext(AppDataContext);
 
-    if (context === undefined) {
-        throw new Error('useAppDataState must be used within a AppDataContext');
-    }
+  if (context === undefined) {
+    throw new Error('useAppDataState must be used within a AppDataContext');
+  }
 
-    return context;
+  return context;
 };

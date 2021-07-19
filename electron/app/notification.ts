@@ -6,24 +6,24 @@ const isDesktopNotificationSupported = Notification.isSupported();
 const logger = logManager.getLogger('Notification');
 
 export function showNotification({
-    body,
-    title = 'GitStart DevTime',
-    onClick = null,
-    silent = false,
+  body,
+  title = 'GitStart DevTime',
+  onClick = null,
+  silent = false,
 }) {
-    if (isDesktopNotificationSupported) {
-        logger.debug('Showing notification:', body, title);
-        const notification = new Notification({
-            title,
-            body,
-            silent,
-            icon: config.iconBig,
-        });
-        if (onClick) {
-            notification.once('click', onClick);
-        }
-        notification.show();
-    } else {
-        logger.error('Notifications not supported');
+  if (isDesktopNotificationSupported) {
+    logger.debug('Showing notification:', body, title);
+    const notification = new Notification({
+      title,
+      body,
+      silent,
+      icon: config.iconBig,
+    });
+    if (onClick) {
+      notification.once('click', onClick);
     }
+    notification.show();
+  } else {
+    logger.error('Notifications not supported');
+  }
 }

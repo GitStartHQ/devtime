@@ -9,86 +9,85 @@ import { TrackItem } from './models/TrackItem';
 
 const logger = logManager.getLogger('TrackItemService');
 export class TaskAnalyser {
-    newItem: Partial<TrackItem>;
+  newItem: Partial<TrackItem>;
 
-    findFirst(str, findRe) {
-        if (!findRe) {
-            return;
-        }
-
-        let re = new RegExp(findRe, 'g');
-        let result = re.exec(str);
-
-        if (result != null) {
-            let first = result[0];
-            return first;
-        }
+  findFirst(str, findRe) {
+    if (!findRe) {
+      return;
     }
 
-    onNotificationClick() {
-        if (taskAnalyser.newItem == null) {
-            logger.debug('Already clicked. Prevent from creating double item.');
-            return;
+    let re = new RegExp(findRe, 'g');
+    let result = re.exec(str);
+
+    if (result != null) {
+      let first = result[0];
+      return first;
+    }
+  }
+
+  onNotificationClick() {
+    if (taskAnalyser.newItem == null) {
+      logger.debug('Already clicked. Prevent from creating double item.');
+      return;
+    }
+
+    logger.debug('Clicked. Creating new task', taskAnalyser.newItem);
+
+    appEmitter.emit('start-new-log-item', taskAnalyser.newItem);
+
+    showNotification({
+      title: 'New task created!',
+      body: `Task "${taskAnalyser.newItem.title}" running.`,
+      onClick: this.onNotificationClick,
+      silent: true,
+    });
+
+    taskAnalyser.newItem = null;
+  }
+
+  async analyseAndNotify(item) {
+    try {
+      let analyserItems = await settingsService.fetchAnalyserSettings();
+
+      for (let patObj of analyserItems) {
+        if (!patObj.findRe || !patObj.enabled) {
+          continue;
         }
 
-        logger.debug('Clicked. Creating new task', taskAnalyser.newItem);
+        let foundStr = this.findFirst(item.title, patObj.findRe);
 
-        appEmitter.emit('start-new-log-item', taskAnalyser.newItem);
+        if (!foundStr) {
+          continue;
+        }
 
-        showNotification({
-            title: 'New task created!',
-            body: `Task "${taskAnalyser.newItem.title}" running.`,
+        let title = this.findFirst(item.title, patObj.takeTitle) || item.title;
+        let app = this.findFirst(item.title, patObj.takeGroup) || foundStr;
+
+        const runningItem = stateManager.getLogTrackItemMarkedAsRunning();
+
+        const sameItem = runningItem && runningItem.app == app && runningItem.title === title;
+
+        if (!sameItem) {
+          this.newItem = {
+            app: app,
+            title: title,
+            taskName: TrackItemType.LogTrackItem,
+            beginDate: new Date(),
+            endDate: new Date(),
+            color: randomcolor(),
+          };
+          showNotification({
+            body: `Click to create: "${app} - ${title}"`,
+            title: 'Create new task?',
             onClick: this.onNotificationClick,
             silent: true,
-        });
-
-        taskAnalyser.newItem = null;
-    }
-
-    async analyseAndNotify(item) {
-        try {
-            let analyserItems = await settingsService.fetchAnalyserSettings();
-
-            for (let patObj of analyserItems) {
-                if (!patObj.findRe || !patObj.enabled) {
-                    continue;
-                }
-
-                let foundStr = this.findFirst(item.title, patObj.findRe);
-
-                if (!foundStr) {
-                    continue;
-                }
-
-                let title = this.findFirst(item.title, patObj.takeTitle) || item.title;
-                let app = this.findFirst(item.title, patObj.takeGroup) || foundStr;
-
-                const runningItem = stateManager.getLogTrackItemMarkedAsRunning();
-
-                const sameItem =
-                    runningItem && runningItem.app == app && runningItem.title === title;
-
-                if (!sameItem) {
-                    this.newItem = {
-                        app: app,
-                        title: title,
-                        taskName: TrackItemType.LogTrackItem,
-                        beginDate: new Date(),
-                        endDate: new Date(),
-                        color: randomcolor(),
-                    };
-                    showNotification({
-                        body: `Click to create: "${app} - ${title}"`,
-                        title: 'Create new task?',
-                        onClick: this.onNotificationClick,
-                        silent: true,
-                    });
-                }
-            }
-        } catch (e) {
-            logger.error('analyseAndNotify:', e);
+          });
         }
+      }
+    } catch (e) {
+      logger.error('analyseAndNotify:', e);
     }
+  }
 }
 
 export const taskAnalyser = new TaskAnalyser();

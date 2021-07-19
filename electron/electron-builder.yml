@@ -2,46 +2,46 @@ appId: 'ee.gitstart.devtime'
 productName: 'GitStart DevTime'
 asar: false
 asarUnpack:
-    - scripts
-    - shared
+  - scripts
+  - shared
 extraResources:
-    - tracker.db
+  - tracker.db
 artifactName: '${productName}.${ext}'
 
 directories:
-    output: 'packaged'
+  output: 'packaged'
 files:
-    - '!__tests__'
-    - '!__e2e__'
-    - '!__mocks__'
-    - '!app'
-    - '!custom_typings'
-    - '!util'
-    - '!test'
-    - '!release'
-    - '!travis_wait*'
+  - '!__tests__'
+  - '!__e2e__'
+  - '!__mocks__'
+  - '!app'
+  - '!custom_typings'
+  - '!util'
+  - '!test'
+  - '!release'
+  - '!travis_wait*'
 
 publish:
-    - github
+  - github
 
 protocols:
-    - name: GitStart DevTime
-      schemes:
-          - x-gitstart-devtime
+  - name: GitStart DevTime
+    schemes:
+      - x-gitstart-devtime
 
 win:
-    target:
-        - target: 'nsis'
-          arch:
-              - x64
-              - ia32
+  target:
+    - target: 'nsis'
+      arch:
+        - x64
+        - ia32
 
 mac:
-    category: public.app-category.productivity
+  category: public.app-category.productivity
 
 linux:
-    icon: 'shared/img/icon/GitStart-DevTime-Icon_big.icns'
-    category: Utility
-    target:
-        - AppImage
-        - deb
+  icon: 'shared/img/icon/GitStart-DevTime-Icon_big.icns'
+  category: Utility
+  target:
+    - AppImage
+    - deb

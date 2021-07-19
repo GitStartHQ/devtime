@@ -22,51 +22,51 @@ moment.locale('en-gb');
 const savedTheme = getThemeFromStorage();
 
 export function MainRouter() {
-    const theme = useStoreState(state => state.theme);
-    const setThemeWithVariables = useStoreActions(actions => actions.setThemeWithVariables);
-    const setThemeByName = useStoreActions(actions => actions.setThemeByName);
+  const theme = useStoreState((state) => state.theme);
+  const setThemeWithVariables = useStoreActions((actions) => actions.setThemeWithVariables);
+  const setThemeByName = useStoreActions((actions) => actions.setThemeByName);
 
-    useEffect(() => {
-        if (savedTheme && savedTheme.variables) {
-            setThemeWithVariables(savedTheme);
-        }
-    }, [setThemeWithVariables]);
+  useEffect(() => {
+    if (savedTheme && savedTheme.variables) {
+      setThemeWithVariables(savedTheme);
+    }
+  }, [setThemeWithVariables]);
 
-    const changeActiveTheme = useCallback(
-        (event, themeName) => {
-            setThemeByName(themeName);
-        },
-        [setThemeByName],
-    );
+  const changeActiveTheme = useCallback(
+    (event, themeName) => {
+      setThemeByName(themeName);
+    },
+    [setThemeByName],
+  );
 
-    useEffect(() => {
-        EventEmitter.on('activeThemeChanged', changeActiveTheme);
-        return () => {
-            Logger.debug('Clearing eventEmitter');
-            EventEmitter.off('activeThemeChanged', changeActiveTheme);
-        };
-    }, [changeActiveTheme]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    EventEmitter.on('activeThemeChanged', changeActiveTheme);
+    return () => {
+      Logger.debug('Clearing eventEmitter');
+      EventEmitter.off('activeThemeChanged', changeActiveTheme);
+    };
+  }, [changeActiveTheme]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useEffect(() => {
-        saveThemeToStorage(theme);
-    }, [theme]);
+  useEffect(() => {
+    saveThemeToStorage(theme);
+  }, [theme]);
 
-    const state: any = useAppDataState();
+  const state: any = useAppDataState();
 
-    return (
-        <ConfigProvider locale={state.locale}>
-            <ThemeProvider theme={theme}>
-                <ChartThemeProvider theme={theme}>
-                    <RootProvider>
-                        <Switch>
-                            <Route path="/" exact component={MainAppPage} />
-                            <Route path="/app" component={MainAppPage} />
-                            <Route path="/trayApp" component={TrayAppPage} />
-                            <Route path="*" component={NotFound} />
-                        </Switch>
-                    </RootProvider>
-                </ChartThemeProvider>
-            </ThemeProvider>
-        </ConfigProvider>
-    );
+  return (
+    <ConfigProvider locale={state.locale}>
+      <ThemeProvider theme={theme}>
+        <ChartThemeProvider theme={theme}>
+          <RootProvider>
+            <Switch>
+              <Route path="/" exact component={MainAppPage} />
+              <Route path="/app" component={MainAppPage} />
+              <Route path="/trayApp" component={TrayAppPage} />
+              <Route path="*" component={NotFound} />
+            </Switch>
+          </RootProvider>
+        </ChartThemeProvider>
+      </ThemeProvider>
+    </ConfigProvider>
+  );
 }

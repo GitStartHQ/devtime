@@ -3,23 +3,23 @@ module.exports = {
   match: jest.genMockFunction(),
   app: {
     getName: () => {
-      return 'tockler'
+      return 'tockler';
     },
     getPath: () => {
       return '/tmp/mock_path';
-    }
+    },
   },
   dialog: jest.genMockFunction(),
 
   ipcMain: {
-    on: jest.genMockFunction()
+    on: jest.genMockFunction(),
   },
 
   remote: {
     getCurrentWindow: jest.genMockFunction(),
 
     dialog: {
-      showSaveDialog: jest.genMockFunction()
-    }
-  }
+      showSaveDialog: jest.genMockFunction(),
+    },
+  },
 };
