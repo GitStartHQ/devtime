@@ -10,10 +10,10 @@
 
 # Made with
 
--   [Electron](https://electron.atom.io/) with [Webpack](https://webpack.github.io/) and [Typescript](https://www.typescriptlang.org/)
--   [React](https://reactjs.org/)
--   [D3 v4](https://d3js.org/) and [Victory Chart](http://formidable.com/open-source/victory/docs/victory-chart/)
--   [Ant Design](https://ant.design/)
+- [Electron](https://electron.atom.io/) with [Webpack](https://webpack.github.io/) and [Typescript](https://www.typescriptlang.org/)
+- [React](https://reactjs.org/)
+- [D3 v4](https://d3js.org/) and [Victory Chart](http://formidable.com/open-source/victory/docs/victory-chart/)
+- [Ant Design](https://ant.design/)
 
 # Debugging
 
@@ -78,8 +78,8 @@ GNU General Public License v2.0
 
 # Functionality
 
--   On app launch only tray window runs. Main window does not open.
--   Main window opens from tray windows arrow or by reopening application.
+- On app launch only tray window runs. Main window does not open.
+- Main window opens from tray windows arrow or by reopening application.
 
 # Errors
 

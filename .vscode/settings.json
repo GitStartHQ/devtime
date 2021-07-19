@@ -1,4 +1,5 @@
 {
-    "cSpell.words": ["reflexbox"],
-    "editor.detectIndentation": true
+  "cSpell.words": ["reflexbox"],
+  "editor.detectIndentation": true,
+  "window.title": "${activeEditorShort}${separator}${rootName} ${separator} [Branch: prettier-with-tabWidth=2]"
 }

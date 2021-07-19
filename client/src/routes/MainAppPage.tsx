@@ -8,15 +8,15 @@ import { SearchPage } from './SearchPage';
 import { SupportPage } from './SupportPage';
 
 export function MainAppPage({ history }: any) {
-    return (
-        <Switch>
-            <Route exact path="/" component={TimelinePage} />
-            <Route path="/app/timeline" component={TimelinePage} />
-            <Route path="/app/settings" component={SettingsPage} />
-            <Route path="/app/summary" component={SummaryPage} />
-            <Route path="/app/support" component={SupportPage} />
-            <Route path="/app/search" component={SearchPage} />
-            <Route path="/app/trayApp" component={TrayAppPage} />
-        </Switch>
-    );
+  return (
+    <Switch>
+      <Route exact path="/" component={TimelinePage} />
+      <Route path="/app/timeline" component={TimelinePage} />
+      <Route path="/app/settings" component={SettingsPage} />
+      <Route path="/app/summary" component={SummaryPage} />
+      <Route path="/app/support" component={SupportPage} />
+      <Route path="/app/search" component={SearchPage} />
+      <Route path="/app/trayApp" component={TrayAppPage} />
+    </Switch>
+  );
 }

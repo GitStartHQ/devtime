@@ -8,34 +8,34 @@ import { fetchLoginSettings } from '../../services/settings.api';
 const { Content } = Layout;
 
 export function TrayLayout({ children }: any) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-    const checkLoginSettings = async () => {
-        const settings = await fetchLoginSettings();
-        if (!settings) return;
+  const checkLoginSettings = async () => {
+    const settings = await fetchLoginSettings();
+    if (!settings) return;
 
-        if (settings.token) {
-            setIsLoggedIn(true);
-        }
-    };
+    if (settings.token) {
+      setIsLoggedIn(true);
+    }
+  };
 
-    useEffect(() => {
-        checkLoginSettings();
-    }, []);
+  useEffect(() => {
+    checkLoginSettings();
+  }, []);
 
-    return (
-        <div>
-            <Layout>
-                <TrayMenu />
-                <Content style={{ marginTop: 47 }}>
-                    {!isLoggedIn ? (
-                        <Box p={1}>
-                            <LoginAlert />
-                        </Box>
-                    ) : null}
-                    {children}
-                </Content>
-            </Layout>
-        </div>
-    );
+  return (
+    <div>
+      <Layout>
+        <TrayMenu />
+        <Content style={{ marginTop: 47 }}>
+          {!isLoggedIn ? (
+            <Box p={1}>
+              <LoginAlert />
+            </Box>
+          ) : null}
+          {children}
+        </Content>
+      </Layout>
+    </div>
+  );
 }

@@ -8,24 +8,24 @@ import { Logger } from '../../logger';
 const { Option } = Select;
 
 export const LocaleSelect = () => {
-    const localeList = moment.locales();
-    const defaultLocale = moment.locale();
+  const localeList = moment.locales();
+  const defaultLocale = moment.locale();
 
-    const state: any = useAppDataState();
+  const state: any = useAppDataState();
 
-    function handleChange(value) {
-        Logger.debug(`Setting locale ${value}`);
-        moment.locale(value);
-        state.setLocale(etEe);
-    }
+  function handleChange(value) {
+    Logger.debug(`Setting locale ${value}`);
+    moment.locale(value);
+    state.setLocale(etEe);
+  }
 
-    return (
-        <Select defaultValue={defaultLocale} style={{ width: 120 }} onChange={handleChange}>
-            {localeList.map(locale => (
-                <Option value={locale} key={locale}>
-                    {locale}
-                </Option>
-            ))}
-        </Select>
-    );
+  return (
+    <Select defaultValue={defaultLocale} style={{ width: 120 }} onChange={handleChange}>
+      {localeList.map((locale) => (
+        <Option value={locale} key={locale}>
+          {locale}
+        </Option>
+      ))}
+    </Select>
+  );
 };

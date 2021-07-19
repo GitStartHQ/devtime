@@ -7,25 +7,25 @@ import { saveToDbJob } from './jobs/save-to-db';
 let logger = logManager.getLogger('BackgroundJob');
 
 export class BackgroundJob {
-    async runTimeTrackingJobs() {
-        await appTrackItemJob.run();
-        await statusTrackItemJob.run();
-    }
+  async runTimeTrackingJobs() {
+    await appTrackItemJob.run();
+    await statusTrackItemJob.run();
+  }
 
-    async runDbJobs() {
-        await saveToDbJob.run();
-    }
+  async runDbJobs() {
+    await saveToDbJob.run();
+  }
 
-    init() {
-        logger.debug('Environment:' + process.env.NODE_ENV);
-        logger.debug('Running background service.');
+  init() {
+    logger.debug('Environment:' + process.env.NODE_ENV);
+    logger.debug('Running background service.');
 
-        // time tracking jobs
-        setInterval(() => this.runTimeTrackingJobs(), appConstants.TIME_TRACKING_JOB_INTERVAL);
+    // time tracking jobs
+    setInterval(() => this.runTimeTrackingJobs(), appConstants.TIME_TRACKING_JOB_INTERVAL);
 
-        // db jobs
-        setInterval(() => this.runDbJobs(), appConstants.DB_JOB_INTERVAL);
-    }
+    // db jobs
+    setInterval(() => this.runDbJobs(), appConstants.DB_JOB_INTERVAL);
+  }
 }
 
 export const backgroundJob = new BackgroundJob();

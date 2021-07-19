@@ -9,42 +9,42 @@ import packageJson from '../../../package.json';
 const { Footer, Content } = Layout;
 
 export function MainLayout({ children, location }: any) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false); // avoid first render where alert is shown
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // avoid first render where alert is shown
 
-    const checkLoginSettings = async () => {
-        const settings = await fetchLoginSettings();
-        if (!settings) return;
+  const checkLoginSettings = async () => {
+    const settings = await fetchLoginSettings();
+    if (!settings) return;
 
-        if (settings.token) {
-            setIsLoggedIn(true);
-        }
-    };
+    if (settings.token) {
+      setIsLoggedIn(true);
+    }
+  };
 
-    useEffect(() => {
-        checkLoginSettings();
-    }, [location, location.pathname]);
+  useEffect(() => {
+    checkLoginSettings();
+  }, [location, location.pathname]);
 
-    return (
-        <div>
-            <Layout>
-                <HeaderMenu location={location} />
-                <Content>
-                    {!isLoggedIn &&
-                    (location.pathname === '/' ||
-                        location.pathname === '/app/timeline' ||
-                        location.pathname === '/app/timeline2' ||
-                        location.pathname === '/app/summary' ||
-                        location.pathname === '/app/search') ? (
-                        <Box p={1}>
-                            <LoginAlert />
-                        </Box>
-                    ) : null}
-                    {children}
-                </Content>
-                <Footer>
-                    <p>v{packageJson.version}</p>
-                </Footer>
-            </Layout>
-        </div>
-    );
+  return (
+    <div>
+      <Layout>
+        <HeaderMenu location={location} />
+        <Content>
+          {!isLoggedIn &&
+          (location.pathname === '/' ||
+            location.pathname === '/app/timeline' ||
+            location.pathname === '/app/timeline2' ||
+            location.pathname === '/app/summary' ||
+            location.pathname === '/app/search') ? (
+            <Box p={1}>
+              <LoginAlert />
+            </Box>
+          ) : null}
+          {children}
+        </Content>
+        <Footer>
+          <p>v{packageJson.version}</p>
+        </Footer>
+      </Layout>
+    </div>
+  );
 }

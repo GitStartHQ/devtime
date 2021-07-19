@@ -6,116 +6,110 @@ import { EventEmitter } from './EventEmitter';
 import { emit } from 'eiphop';
 
 async function findAllDayItems(
-    from: moment.Moment,
-    to: moment.Moment,
-    taskName: string,
+  from: moment.Moment,
+  to: moment.Moment,
+  taskName: string,
 ): Promise<any> {
-    //Logger.debug('findAllDayItems', JSON.stringify({ from, to, taskName }));
-    const data = await emit('findAllDayItems', {
-        from: from.valueOf(),
-        to: to.valueOf(),
-        taskName,
-    });
-    // Logger.debug('findAllDayItems result ', data);
-    return data;
+  //Logger.debug('findAllDayItems', JSON.stringify({ from, to, taskName }));
+  const data = await emit('findAllDayItems', {
+    from: from.valueOf(),
+    to: to.valueOf(),
+    taskName,
+  });
+  // Logger.debug('findAllDayItems result ', data);
+  return data;
 }
 
 export async function findAllDayItemsForEveryTrack(from: moment.Moment, to: moment.Moment) {
-    // TODO, query all at async
-    const appItems: ITrackItem[] = await findAllDayItems(from, to, TrackItemType.AppTrackItem);
+  // TODO, query all at async
+  const appItems: ITrackItem[] = await findAllDayItems(from, to, TrackItemType.AppTrackItem);
 
-    const statusItems: ITrackItem[] = await findAllDayItems(
-        from,
-        to,
-        TrackItemType.StatusTrackItem,
-    );
-    const logItems: ITrackItem[] = [];
+  const statusItems: ITrackItem[] = await findAllDayItems(from, to, TrackItemType.StatusTrackItem);
+  const logItems: ITrackItem[] = [];
 
-    return { appItems, statusItems, logItems };
+  return { appItems, statusItems, logItems };
 }
 
 export function findFirstLogItems(): Promise<any> {
-    return emit('findFirstLogItems');
+  return emit('findFirstLogItems');
 }
 
 export function getOnlineStartTime(): Promise<any> {
-    return emit('getOnlineStartTime');
+  return emit('getOnlineStartTime');
 }
 
 export function searchFromItems({ from, to, taskName, searchStr, paging }): Promise<any> {
-    return emit('searchFromItems', {
-        from: from.valueOf(),
-        to: to.valueOf(),
-        taskName,
-        searchStr,
-        paging,
-    });
+  return emit('searchFromItems', {
+    from: from.valueOf(),
+    to: to.valueOf(),
+    taskName,
+    searchStr,
+    paging,
+  });
 }
 export function exportFromItems({ from, to, taskName, searchStr }): Promise<any> {
-    return emit('exportFromItems', {
-        from: from.valueOf(),
-        to: to.valueOf(),
-        taskName,
-        searchStr,
-    });
+  return emit('exportFromItems', {
+    from: from.valueOf(),
+    to: to.valueOf(),
+    taskName,
+    searchStr,
+  });
 }
 
 function createTrackItem(trackItem: ITrackItem): Promise<any> {
-    return emit('createTrackItem', { trackItem: trackItem });
+  return emit('createTrackItem', { trackItem: trackItem });
 }
 
 function updateTrackItem(trackItem: ITrackItem): Promise<any> {
-    return emit('updateTrackItem', { trackItem });
+  return emit('updateTrackItem', { trackItem });
 }
 
 export async function saveTrackItem(trackItem): Promise<any> {
-    Logger.debug('Saving trackitem.', trackItem);
-    if (!trackItem.taskName) {
-        trackItem.taskName = 'LogTrackItem';
+  Logger.debug('Saving trackitem.', trackItem);
+  if (!trackItem.taskName) {
+    trackItem.taskName = 'LogTrackItem';
+  }
+  if (trackItem.id) {
+    if (trackItem.originalColor === trackItem.color) {
+      // this.updateTrackItem(trackItem);
+    } else {
+      // this.showChangeColorDialog();
     }
-    if (trackItem.id) {
-        if (trackItem.originalColor === trackItem.color) {
-            // this.updateTrackItem(trackItem);
-        } else {
-            // this.showChangeColorDialog();
-        }
-        const item = await updateTrackItem(trackItem);
-        Logger.debug('Updated trackitem to DB:', item);
-        return item;
-    }
-    if (!trackItem.app) {
-        trackItem.app = 'Default';
-    }
-    const item = createTrackItem(trackItem);
-    // Logger.debug('Created trackitem to DB:', item);
+    const item = await updateTrackItem(trackItem);
+    Logger.debug('Updated trackitem to DB:', item);
     return item;
+  }
+  if (!trackItem.app) {
+    trackItem.app = 'Default';
+  }
+  const item = createTrackItem(trackItem);
+  // Logger.debug('Created trackitem to DB:', item);
+  return item;
 }
 
 export function deleteByIds(trackItemIds: number[]) {
-    return emit('deleteByIds', { trackItemIds });
+  return emit('deleteByIds', { trackItemIds });
 }
 
 export function startNewLogItem(oldItem: any) {
-    Logger.debug('startNewLogItem');
+  Logger.debug('startNewLogItem');
 
-    const newItem: any = {};
-    newItem.app = oldItem.app || 'WORK';
-    newItem.taskName = 'LogTrackItem';
-    newItem.color = oldItem.color;
-    newItem.title = oldItem.title;
-    newItem.beginDate = moment().valueOf();
-    newItem.endDate = moment()
-        .add(60, 'seconds')
-        .valueOf();
+  const newItem: any = {};
+  newItem.app = oldItem.app || 'WORK';
+  newItem.taskName = 'LogTrackItem';
+  newItem.color = oldItem.color;
+  newItem.title = oldItem.title;
+  newItem.beginDate = moment().valueOf();
+  newItem.endDate = moment().add(60, 'seconds').valueOf();
 
-    EventEmitter.send('start-new-log-item', newItem);
+  EventEmitter.send('start-new-log-item', newItem);
 }
 
 export function stopRunningLogItem(runningLogItemId: number) {
-    Logger.debug('stopRunningLogItem', runningLogItemId);
-    EventEmitter.send('end-running-log-item');
+  Logger.debug('stopRunningLogItem', runningLogItemId);
+  EventEmitter.send('end-running-log-item');
 }
 
 export function updateTrackItemColor(appName: string, color: string) {
-    return emit('updateTrackItemColor', { appName, color });
+  return emit('updateTrackItemColor', { appName, color });
 }

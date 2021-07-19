@@ -8,7 +8,7 @@ Logger.transports.console.level = isProd ? 'warn' : 'debug';
 let isLoggingEnabled = getIsLoggingEnabled();
 
 if (isLoggingEnabled) {
-    Logger.transports.file.level = 'debug';
+  Logger.transports.file.level = 'debug';
 } else {
-    Logger.transports.file.level = false;
+  Logger.transports.file.level = false;
 }

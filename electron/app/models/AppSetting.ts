@@ -2,9 +2,9 @@ import { Model } from 'objection';
 
 // TODO: add indexes name
 export class AppSetting extends Model {
-    static tableName = 'AppSettings';
+  static tableName = 'AppSettings';
 
-    id!: number;
-    name!: string;
-    color!: string;
+  id!: number;
+  name!: string;
+  color!: string;
 }

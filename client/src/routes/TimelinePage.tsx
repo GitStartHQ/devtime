@@ -10,23 +10,23 @@ import { useStoreActions } from '../store/easyPeasy';
 const BG_SYNC_DELAY_MS = 3000;
 
 export function TimelinePage({ location }: any) {
-    const fetchTimerange = useStoreActions(actions => actions.fetchTimerange);
-    const bgSyncInterval = useStoreActions(actions => actions.bgSyncInterval);
+  const fetchTimerange = useStoreActions((actions) => actions.fetchTimerange);
+  const bgSyncInterval = useStoreActions((actions) => actions.bgSyncInterval);
 
-    useInterval(() => {
-        bgSyncInterval();
-    }, [BG_SYNC_DELAY_MS]);
+  useInterval(() => {
+    bgSyncInterval();
+  }, [BG_SYNC_DELAY_MS]);
 
-    useEffect(() => {
-        fetchTimerange();
-    }, [fetchTimerange]);
+  useEffect(() => {
+    fetchTimerange();
+  }, [fetchTimerange]);
 
-    return (
-        <MainLayout location={location}>
-            <Search />
-            <Timeline />
-            <PieCharts />
-            <TrackItemTable />
-        </MainLayout>
-    );
+  return (
+    <MainLayout location={location}>
+      <Search />
+      <Timeline />
+      <PieCharts />
+      <TrackItemTable />
+    </MainLayout>
+  );
 }
