@@ -12,7 +12,7 @@ import { hasura_uuid, user_events_insert_input, user_work_logs_insert_input } fr
 export class SaveToDbJob {
     private token: string | null = null;
     private lastSavedUserEventsAt: Date = moment().subtract(1, 'day').toDate();
-    private lastSavedUserWorklogsAt: Date = moment().subtract(1, 'day').toDate();
+    private lastSavedUserWorklogsAt: Date = new Date();
     private lastSavedSummary: (SummaryItem & { worklogId: number }) | null = null;
     // TODO: turn this cache into a DB table
     private cachedPossibleEntities: PossibleEntities | null = null;
@@ -220,95 +220,104 @@ export class SaveToDbJob {
                 );
 
                 if (grouppedSummary.length > 0) {
-                    // check if first summary item matches this.lastSavedSummary
-                    if (
-                        this.lastSavedSummary?.endAt &&
-                        grouppedSummary[0].startAt <=
-                            moment(this.lastSavedSummary.endAt).add(5, 'minutes').toDate() &&
-                        ((grouppedSummary[0].type === 'task' &&
-                            grouppedSummary[0].type === this.lastSavedSummary.type &&
-                            grouppedSummary[0].id === this.lastSavedSummary.id) ||
-                            (grouppedSummary[0].type === 'ticket' &&
+                    try {
+                        // check if first summary item matches this.lastSavedSummary
+                        if (
+                            this.lastSavedSummary?.endAt &&
+                            grouppedSummary[0].startAt <=
+                                moment(this.lastSavedSummary.endAt).add(5, 'minutes').toDate() &&
+                            ((grouppedSummary[0].type === 'task' &&
                                 grouppedSummary[0].type === this.lastSavedSummary.type &&
                                 grouppedSummary[0].id === this.lastSavedSummary.id) ||
-                            (grouppedSummary[0].type === 'client_project' &&
-                                grouppedSummary[0].type === this.lastSavedSummary.type &&
-                                grouppedSummary[0].id === this.lastSavedSummary.id) ||
-                            (grouppedSummary[0].type === 'client' &&
-                                grouppedSummary[0].type === this.lastSavedSummary.type &&
-                                grouppedSummary[0].id.toString() ===
-                                    this.lastSavedSummary.id.toString()))
-                    ) {
-                        // mutation to update worklog endAt field
-                        const returned = await fetchGraphQLClient(
-                            process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
-                            {
-                                token: this.token,
-                            },
-                        )<
-                            {
-                                update_one_user_work_log: {
-                                    id: number;
-                                } | null;
-                            },
-                            {
-                                worklogId: number;
-                                worklogUpdates: {
-                                    endAt: string;
-                                };
-                            }
-                        >({
-                            operationAction: `
+                                (grouppedSummary[0].type === 'ticket' &&
+                                    grouppedSummary[0].type === this.lastSavedSummary.type &&
+                                    grouppedSummary[0].id === this.lastSavedSummary.id) ||
+                                (grouppedSummary[0].type === 'client_project' &&
+                                    grouppedSummary[0].type === this.lastSavedSummary.type &&
+                                    grouppedSummary[0].id === this.lastSavedSummary.id) ||
+                                (grouppedSummary[0].type === 'client' &&
+                                    grouppedSummary[0].type === this.lastSavedSummary.type &&
+                                    grouppedSummary[0].id.toString() ===
+                                        this.lastSavedSummary.id.toString()))
+                        ) {
+                            // mutation to update worklog endAt field
+                            const update = await fetchGraphQLClient(
+                                process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
+                                {
+                                    token: this.token,
+                                },
+                            )<
+                                {
+                                    update_one_user_work_log: {
+                                        id: number;
+                                    } | null;
+                                },
+                                {
+                                    worklogId: number;
+                                    worklogUpdates: {
+                                        endAt: string;
+                                    };
+                                }
+                            >({
+                                operationAction: `
                                 mutation UpdateWorklog($worklogId: Int!, $worklogUpdates: user_work_logs_set_input!) {
                                     update_one_user_work_log: update_user_work_logs_by_pk(pk_columns: {id: $worklogId}, _set: $worklogUpdates) {
                                         id
                                     }
                                 }
                             `,
-                            variables: {
-                                worklogId: this.lastSavedSummary.worklogId,
-                                worklogUpdates: {
-                                    endAt: new Date(grouppedSummary[0].endAt).toJSON(),
+                                variables: {
+                                    worklogId: this.lastSavedSummary.worklogId,
+                                    worklogUpdates: {
+                                        endAt: new Date(grouppedSummary[0].endAt).toJSON(),
+                                    },
                                 },
-                            },
-                        });
+                            });
 
-                        if ((returned.errors?.length ?? 0) > 0) {
-                            throw new Error(
-                                `Error updating user worklog | ${JSON.stringify(returned.errors)}`,
-                            );
-                        }
-
-                        if (grouppedSummary.length === 1) {
-                            this.lastSavedSummary = {
-                                ...this.lastSavedSummary,
-                                endAt: grouppedSummary[0].endAt,
-                            };
-                        }
-
-                        grouppedSummary.shift();
-                    }
-
-                    if (grouppedSummary.length > 0) {
-                        // mutation to insert new user_worklogs
-                        const update = await fetchGraphQLClient(
-                            process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
-                            {
-                                token: this.token,
-                            },
-                        )<
-                            {
-                                insert_user_work_logs: {
-                                    returning: {
-                                        id: number;
-                                    }[];
-                                };
-                            },
-                            {
-                                worklogs: user_work_logs_insert_input[];
+                            if ((update.errors?.length ?? 0) > 0) {
+                                if (
+                                    !update.errors.find((error) =>
+                                        error.message.includes('UQ_USER_WORK_LOG_NON_OVERLAPPING'),
+                                    )
+                                ) {
+                                    throw new Error(
+                                        `Error updating user worklog | ${JSON.stringify(
+                                            update.errors,
+                                        )}`,
+                                    );
+                                }
                             }
-                        >({
-                            operationAction: `
+
+                            if (grouppedSummary.length === 1) {
+                                this.lastSavedSummary = {
+                                    ...this.lastSavedSummary,
+                                    endAt: grouppedSummary[0].endAt,
+                                };
+                            }
+
+                            grouppedSummary.shift();
+                        }
+
+                        if (grouppedSummary.length > 0) {
+                            // mutation to insert new user_work_logs
+                            const insert = await fetchGraphQLClient(
+                                process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
+                                {
+                                    token: this.token,
+                                },
+                            )<
+                                {
+                                    insert_user_work_logs: {
+                                        returning: {
+                                            id: number;
+                                        }[];
+                                    };
+                                },
+                                {
+                                    worklogs: user_work_logs_insert_input[];
+                                }
+                            >({
+                                operationAction: `
                                 mutation InsertWorklogs($worklogs: [user_work_logs_insert_input!]!) {
                                     insert_user_work_logs(objects: $worklogs) {
                                         returning {
@@ -317,53 +326,65 @@ export class SaveToDbJob {
                                     }
                                 }
                             `,
-                            variables: {
-                                worklogs: grouppedSummary.map((summary) => ({
-                                    startAt: new Date(summary.startAt).toJSON(),
-                                    endAt: new Date(summary.endAt).toJSON(),
-                                    workDescription:
-                                        'This log was added automatically using data from the GitStart DevTime desktop app.',
-                                    ...(summary.type === 'task' ? { taskId: summary.id } : {}),
-                                    ...(summary.type === 'ticket' ? { ticketId: summary.id } : {}),
-                                    ...(summary.type === 'client_project'
-                                        ? { clientProjectId: summary.id }
-                                        : {}),
-                                    ...(summary.type === 'client' ? { clientId: summary.id } : {}),
-                                    technologyId: null, // TODO: get technology by extracting the file extension in the window title of VS Code events
-                                    workType: summary.type,
-                                    userId: user.id,
-                                    status: 'confirmed',
-                                    approvalStatus: 'auto',
-                                    billableToClient: false,
-                                    source: 'automatic from GitStart DevTime app',
-                                })),
-                            },
-                        });
+                                variables: {
+                                    worklogs: grouppedSummary.map((summary) => ({
+                                        startAt: new Date(summary.startAt).toJSON(),
+                                        endAt: new Date(summary.endAt).toJSON(),
+                                        workDescription:
+                                            'This log was added automatically using data from the GitStart DevTime desktop app.',
+                                        ...(summary.type === 'task' ? { taskId: summary.id } : {}),
+                                        ...(summary.type === 'ticket'
+                                            ? { ticketId: summary.id }
+                                            : {}),
+                                        ...(summary.type === 'client_project'
+                                            ? { clientProjectId: summary.id }
+                                            : {}),
+                                        ...(summary.type === 'client'
+                                            ? { clientId: summary.id }
+                                            : {}),
+                                        technologyId: null, // TODO: get technology by extracting the file extension in the window title of VS Code events
+                                        workType: summary.type,
+                                        userId: user.id,
+                                        status: 'confirmed',
+                                        approvalStatus: 'auto',
+                                        billableToClient: false,
+                                        source: 'automatic from GitStart DevTime app',
+                                    })),
+                                },
+                            });
 
-                        if ((update.errors?.length ?? 0) > 0) {
-                            // ignore the error if we've already added worklogs at those times
-                            if (
-                                !update.errors.find((error) =>
-                                    error.message.includes('UQ_USER_WORK_LOG_NON_OVERLAPPING'),
-                                )
-                            ) {
-                                throw new Error(
-                                    `Error inserting user worklog | ${JSON.stringify(
-                                        update.errors,
-                                    )}`,
-                                );
+                            if ((insert.errors?.length ?? 0) > 0) {
+                                // ignore the error if we've already added worklogs at those times
+                                if (
+                                    !insert.errors.find((error) =>
+                                        error.message.includes('UQ_USER_WORK_LOG_NON_OVERLAPPING'),
+                                    )
+                                ) {
+                                    throw new Error(
+                                        `Error inserting user worklog | ${JSON.stringify(
+                                            insert.errors,
+                                        )}`,
+                                    );
+                                }
                             }
-                        }
 
-                        const returningLength = update.data.insert_user_work_logs.returning.length;
-                        this.lastSavedSummary = {
-                            ...grouppedSummary[grouppedSummary.length - 1],
-                            worklogId:
-                                update.data.insert_user_work_logs.returning[returningLength - 1].id,
-                        };
+                            const returningLength =
+                                insert.data.insert_user_work_logs.returning.length;
+                            this.lastSavedSummary = {
+                                ...grouppedSummary[grouppedSummary.length - 1],
+                                worklogId:
+                                    insert.data.insert_user_work_logs.returning[returningLength - 1]
+                                        .id,
+                            };
+                        }
+                    } catch (err) {
+                        if (!err.message.includes('UQ_USER_WORK_LOG_NON_OVERLAPPING')) {
+                            throw err;
+                        }
                     }
                 }
 
+                console.log('Updating', events.length, 'events with isSummarized = true.');
                 const eventIds = events.map((event) => event.id);
                 await TrackItem.query().whereIn('id', eventIds).patch({
                     updatedAt: new Date(),
@@ -513,7 +534,7 @@ function logErrors(e: any) {
         .createOrUpdateLog({
             type: 'ERROR',
             message: e.message,
-            jsonData: e.toString(),
+            jsonData: JSON.stringify(e),
         })
         .catch(console.error);
 }

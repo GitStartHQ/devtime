@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'antd';
+import { Alert, Typography } from 'antd';
 import { findAllLogs } from '../../services/logs-api';
 import moment from 'moment';
 
@@ -18,7 +18,7 @@ export const LogList = () => {
     const getAllLogs = async () => {
         const newLogs = await findAllLogs(
             moment()
-                .subtract(1, 'day')
+                .subtract(3, 'hours')
                 .toDate(),
         );
         setLogs(newLogs);
@@ -46,6 +46,13 @@ export const LogList = () => {
 
     return (
         <>
+            {logs.length > 0 ? (
+                <Typography.Text type="secondary" style={{ marginBottom: '8px' }}>
+                    You can ignore errors/warnings that are 10 minutes or older as they don't seem
+                    to be repeating. Repeating errors/warnings will update the time (i.e. "... ago")
+                    to be less than 10 minutes.
+                </Typography.Text>
+            ) : null}
             {logs.map(log => (
                 <Alert
                     type={
