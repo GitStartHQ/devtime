@@ -7,6 +7,14 @@ export class LogService {
 
     async createOrUpdateLog(logAttributes: Partial<Log>): Promise<Log> {
         let log: Log = null;
+        // Skip known/unfixable errors
+        if (logAttributes.message.includes("'endDate' of null")) {
+            return log;
+        }
+        if (logAttributes.message.includes('getaddrinfo ENOTFOUND hasura.gitstart.com')) {
+            logAttributes.message =
+                'GitStart DevTime was disconnected. Please make sure you are connected to the internet.';
+        }
         if (
             this.lastLog &&
             logAttributes.type === this.lastLog.type &&

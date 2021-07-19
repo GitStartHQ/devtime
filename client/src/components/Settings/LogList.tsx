@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'antd';
+import { Alert, Typography } from 'antd';
 import { findAllLogs } from '../../services/logs-api';
 import moment from 'moment';
 
@@ -46,6 +46,12 @@ export const LogList = () => {
 
     return (
         <>
+            {logs.length > 0 ? (
+                <Typography.Text type="secondary">
+                    You can ignore errors/warnings that are 10 minutes or older as they don't seem
+                    to be repeating.
+                </Typography.Text>
+            ) : null}
             {logs.map(log => (
                 <Alert
                     type={
