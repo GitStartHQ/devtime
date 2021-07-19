@@ -18,7 +18,7 @@ export const LogList = () => {
     const getAllLogs = async () => {
         const newLogs = await findAllLogs(
             moment()
-                .subtract(1, 'day')
+                .subtract(3, 'hours')
                 .toDate(),
         );
         setLogs(newLogs);
@@ -49,7 +49,8 @@ export const LogList = () => {
             {logs.length > 0 ? (
                 <Typography.Text type="secondary">
                     You can ignore errors/warnings that are 10 minutes or older as they don't seem
-                    to be repeating.
+                    to be repeating. Repeating errors/warnings will update the time (i.e. "... ago")
+                    to be less than 10 minutes.
                 </Typography.Text>
             ) : null}
             {logs.map(log => (
