@@ -47,7 +47,7 @@ export const LogList = () => {
     return (
         <>
             {logs.length > 0 ? (
-                <Typography.Text type="secondary">
+                <Typography.Text type="secondary" style={{ marginBottom: '8px' }}>
                     You can ignore errors/warnings that are 10 minutes or older as they don't seem
                     to be repeating. Repeating errors/warnings will update the time (i.e. "... ago")
                     to be less than 10 minutes.
