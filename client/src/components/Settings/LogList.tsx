@@ -16,7 +16,11 @@ export const LogList = () => {
   const [logs, setLogs] = useState<Log[]>([]);
 
   const getAllLogs = async () => {
-    const newLogs = await findAllLogs(moment().subtract(3, 'hours').toDate());
+    const newLogs = await findAllLogs(
+      moment()
+        .subtract(3, 'hours')
+        .toDate(),
+    );
     setLogs(newLogs);
   };
 
@@ -43,13 +47,13 @@ export const LogList = () => {
   return (
     <>
       {logs.length > 0 ? (
-        <Typography.Text type="secondary">
+        <Typography.Text type="secondary" style={{ marginBottom: '8px' }}>
           You can ignore errors/warnings that are 10 minutes or older as they don't seem to be
           repeating. Repeating errors/warnings will update the time (i.e. "... ago") to be less than
           10 minutes.
         </Typography.Text>
       ) : null}
-      {logs.map((log) => (
+      {logs.map(log => (
         <Alert
           type={log.type === 'ERROR' ? 'error' : log.type === 'WARNING' ? 'warning' : 'info'}
           message={`"${log.message}" ${moment(log.updatedAt).fromNow()}`}
