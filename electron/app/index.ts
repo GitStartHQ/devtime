@@ -141,7 +141,7 @@ app.whenReady().then(() => {
     );
 });
 
-// open-url event is triggered whenever opening a url with protocol PROTOCOL_NAME (e.g. type x-gitstart-devtime://test in your browser, it should open GitStart DevTime with a success notification). Preferred method of handling protocol URLs on Mac.
+// open-url event is triggered whenever opening a url with protocol PROTOCOL_NAME (e.g. type x-devtime://test in your browser, it should open GitStart DevTime with a success notification). Preferred method of handling protocol URLs on Mac.
 app.on('open-url', (_, rawUrl) => {
     console.log("on.('open-url'):", rawUrl);
     processProtocolUrl(rawUrl);

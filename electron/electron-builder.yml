@@ -27,7 +27,7 @@ publish:
 protocols:
     - name: GitStart DevTime
       schemes:
-          - x-gitstart-devtime
+          - x-devtime
 
 win:
     target:

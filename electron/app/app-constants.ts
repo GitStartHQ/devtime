@@ -9,7 +9,7 @@ export default class AppConstants {
             : 10 * 1000 // 10 seconds
         : 5 * 60 * 1000; // 5 minutes
     IDLE_IN_SECONDS_TO_LOG: number = 60 * 1;
-    PROTOCOL_NAME: string = 'x-gitstart-devtime';
+    PROTOCOL_NAME: string = 'x-devtime';
 }
 
 export const appConstants = new AppConstants();
