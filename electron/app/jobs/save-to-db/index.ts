@@ -1,22 +1,16 @@
 import moment = require('moment');
 import { Model } from 'objection';
 import { appConstants } from '../../app-constants';
-import config from '../../config';
 import { fetchGraphQLClient, getUserFromToken } from '../../graphql';
 import { TrackItem } from '../../models/TrackItem';
 import { logService } from '../../services/log-service';
 import { settingsService } from '../../services/settings-service';
 import { trackItemService } from '../../services/track-item-service';
-import { hasura_uuid, user_events_insert_input, user_work_logs_insert_input } from './types';
+import { hasura_uuid, user_events_insert_input } from './types';
 
 export class SaveToDbJob {
     private token: string | null = null;
     private lastSavedUserEventsAt: Date = moment().subtract(1, 'day').toDate();
-    private lastSavedUserWorklogsAt: Date = new Date();
-    private lastSavedSummary: (SummaryItem & { worklogId: number }) | null = null;
-    // TODO: turn this cache into a DB table
-    private cachedPossibleEntities: PossibleEntities | null = null;
-    private lastCachedPossibleEntitiesAt: Date = new Date();
 
     async run() {
         try {
@@ -28,379 +22,41 @@ export class SaveToDbJob {
                 }
             }
 
-            await this.createAndSaveUserWorklogs();
             await this.saveUserEvents();
         } catch (e) {
             logErrors(e);
         }
     }
 
-    private async createAndSaveUserWorklogs() {
-        try {
-            // save summarized events as user_worklogs
-            // DO NOT use this code in a backend service, as it could be highly inneficient -- O(n * o * p * q * r * s) ~= O(n^5)
-            if (this.token) {
-                const events = await TrackItem.query()
-                    .whereRaw(
-                        `"taskName" = 'AppTrackItem'
-                        AND (
-                            "isSummarized" = 0
-                            OR "updatedAt" >= ?
-                        )`,
-                        [this.lastSavedUserWorklogsAt],
-                    )
-                    .limit(100);
 
-                const user = getUserFromToken(this.token);
-                if (!user) {
-                    // TODO: use refreshToken to get new token instead of setting token to null
-                    this.token = null;
-                    await settingsService.updateLoginSettings({ token: null });
-                    throw new Error('Token Expired!');
-                }
+    private createEventFromTrackItem(item: TrackItem, userId) {
+        const durationInSeconds = moment(item.endDate).diff(moment(item.beginDate), 'second');
 
-                if (
-                    !this.cachedPossibleEntities ||
-                    moment().diff(this.lastCachedPossibleEntitiesAt, 'minutes') > 30
-                ) {
-                    const fetchPossibleEntities = await fetchGraphQLClient(
-                        process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
-                        {
-                            token: this.token,
-                        },
-                    )<PossibleEntities, { after: string }>({
-                        operationAction: `
-                            query FetchPossibleEntities($after: timestamptz!) {
-                                tasks(where: {
-                                    status: {_nin: [finished, cancelled]}
-                                    createdAt: {_gte: $after}
-                                }) {
-                                    id
-                                    ticketCode
-                                    taskCode
-                                    ticket {
-                                      id
-                                    }
-                                }
-    
-                                tickets(where: {
-                                    status: {_nin: [finished, cancelled]}
-                                    createdAt: {_gte: $after}
-                                }) {
-                                    id
-                                    code
-                                }
-    
-                                # skipping for now
-                                projects: client_projects(where: {
-                                    _or: [
-                                        {deletedAt: {_is_null: true}},
-                                        {deletedAt: {_gte: "now()"}}
-                                    ]
-                                }) @skip(if: true) {
-                                    id
-                                    name
-                                }
-    
-                                # skipping for now
-                                clients(where: {
-                                    _or: [
-                                        {churnedAt: {_is_null: true}},
-                                        {churnedAt: {_gte: "now()"}},
-                                    ]
-                                }) @skip(if: true) {
-                                    id
-                                    name
-                                }
-                            }
-                        `,
-                        variables: {
-                            after: moment().subtract(15, 'days').toJSON(),
-                        },
-                    });
+          const event = {
+            occurredAt: moment(item.beginDate).format(),
+            updatedAt: new Date().toJSON(),
+            eventType: item.url ? 'browse_url' : 'app_use',
+            userId,
+            appName: item.app,
+            title: item.title,
+            browserUrl: item.url,
+            taskId: item.entityType === 'task' ? item.entityId : undefined,
+            ticketId: item.entityType === 'ticket' ? item.entityId : undefined,
+            clientProjectId: item.projectId,
+            clientId: item.clientId,
+            duration: durationInSeconds,
+            isProcessed: false,
+            pollInterval: appConstants.TIME_TRACKING_JOB_INTERVAL / 1000, // ms to sec
+          };
 
-                    if ((fetchPossibleEntities.errors?.length ?? 0) > 0) {
-                        throw new Error(
-                            `Error fetching possible entities from GitStart's DB | ${JSON.stringify(
-                                fetchPossibleEntities.errors,
-                            )}`,
-                        );
-                    }
+        return event;
+    }
 
-                    this.cachedPossibleEntities = fetchPossibleEntities.data;
-                }
+    private createEventsFromTrackItems(items: TrackItem[], userId: number) {
+        const events = items.map((item) => this.createEventFromTrackItem(item, userId));
 
-                const chunks = chunkEvents(events, {
-                    disableSorting: true,
-                    chunkEvery: 300, // chunks about every 300 seconds (5 minutes). If one activity lasts longer than 300 seconds, it is not split, instead the whole chunk only contains that one activity.
-                });
+        return events;
 
-                const summary = chunks.reduce<SummaryItem[]>((summary, chunk) => {
-                    const summarizedEvents = summarizeEvents(chunk, {
-                        threshold: 0.3, // any activity that takes 30% or more of the chunk is considered a possible summarizer of the whole chunk.
-                    });
-                    const startAt = chunk[0].beginDate;
-                    const endAt = chunk[chunk.length - 1].endDate;
-
-                    const mainEntityOfChunk = summarizedEvents
-                        .map((event) =>
-                            mapKeywordsToEntity(
-                                {
-                                    ...this.cachedPossibleEntities,
-                                    // skipping projects and clients for now (graphql query currently skips projects and clients)
-                                    projects: [],
-                                    clients: [],
-                                },
-                                [event.app, event.title],
-                            ),
-                        )
-                        .sort((a, b) => entityPriority[a.type] - entityPriority[b.type])[0];
-
-                    // skipping client_project and client for now
-                    if (
-                        mainEntityOfChunk.type !== 'client_project' &&
-                        mainEntityOfChunk.type !== 'client' &&
-                        mainEntityOfChunk.type !== 'learning' &&
-                        mainEntityOfChunk.type !== 'other'
-                    ) {
-                        summary.push({
-                            ...mainEntityOfChunk,
-                            startAt,
-                            endAt,
-                            duration: moment(endAt).diff(startAt, 'seconds'),
-                        });
-                    }
-
-                    return summary;
-                }, []);
-
-                // group adjacent events in the summary
-                let grouppedSummary = new Array<SummaryItem>();
-                for (const item of summary) {
-                    if (grouppedSummary.length === 0) {
-                        grouppedSummary.push(item);
-                        continue;
-                    }
-
-                    const lastItem = grouppedSummary[grouppedSummary.length - 1];
-
-                    if (item.startAt > moment(lastItem?.endAt).add(5, 'minutes').toDate()) {
-                        grouppedSummary.push(item);
-                        continue;
-                    }
-
-                    if (
-                        (item.type === 'task' &&
-                            item.type === lastItem.type &&
-                            item.id === lastItem.id) ||
-                        (item.type === 'ticket' &&
-                            item.type === lastItem.type &&
-                            item.id === lastItem.id) ||
-                        (item.type === 'client_project' &&
-                            item.type === lastItem.type &&
-                            item.id === lastItem.id) ||
-                        (item.type === 'client' &&
-                            item.type === lastItem.type &&
-                            item.id === lastItem.id)
-                    ) {
-                        grouppedSummary[grouppedSummary.length - 1] = {
-                            ...lastItem,
-                            endAt: item.endAt,
-                            duration: lastItem.duration + item.duration,
-                        };
-                    } else {
-                        grouppedSummary.push(item);
-                    }
-                }
-
-                const numberOfWorklogsToUpsert = grouppedSummary.length;
-                console.log(
-                    numberOfWorklogsToUpsert,
-                    "user_work_logs need to be upserted to GitStart's DB",
-                );
-
-                if (grouppedSummary.length > 0) {
-                    try {
-                        // check if first summary item matches this.lastSavedSummary
-                        if (
-                            this.lastSavedSummary?.endAt &&
-                            grouppedSummary[0].startAt <=
-                                moment(this.lastSavedSummary.endAt).add(5, 'minutes').toDate() &&
-                            ((grouppedSummary[0].type === 'task' &&
-                                grouppedSummary[0].type === this.lastSavedSummary.type &&
-                                grouppedSummary[0].id === this.lastSavedSummary.id) ||
-                                (grouppedSummary[0].type === 'ticket' &&
-                                    grouppedSummary[0].type === this.lastSavedSummary.type &&
-                                    grouppedSummary[0].id === this.lastSavedSummary.id) ||
-                                (grouppedSummary[0].type === 'client_project' &&
-                                    grouppedSummary[0].type === this.lastSavedSummary.type &&
-                                    grouppedSummary[0].id === this.lastSavedSummary.id) ||
-                                (grouppedSummary[0].type === 'client' &&
-                                    grouppedSummary[0].type === this.lastSavedSummary.type &&
-                                    grouppedSummary[0].id.toString() ===
-                                        this.lastSavedSummary.id.toString()))
-                        ) {
-                            // mutation to update worklog endAt field
-                            const update = await fetchGraphQLClient(
-                                process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
-                                {
-                                    token: this.token,
-                                },
-                            )<
-                                {
-                                    update_one_user_work_log: {
-                                        id: number;
-                                    } | null;
-                                },
-                                {
-                                    worklogId: number;
-                                    worklogUpdates: {
-                                        endAt: string;
-                                    };
-                                }
-                            >({
-                                operationAction: `
-                                mutation UpdateWorklog($worklogId: Int!, $worklogUpdates: user_work_logs_set_input!) {
-                                    update_one_user_work_log: update_user_work_logs_by_pk(pk_columns: {id: $worklogId}, _set: $worklogUpdates) {
-                                        id
-                                    }
-                                }
-                            `,
-                                variables: {
-                                    worklogId: this.lastSavedSummary.worklogId,
-                                    worklogUpdates: {
-                                        endAt: new Date(grouppedSummary[0].endAt).toJSON(),
-                                    },
-                                },
-                            });
-
-                            if ((update.errors?.length ?? 0) > 0) {
-                                if (
-                                    !update.errors.find((error) =>
-                                        error.message.includes('UQ_USER_WORK_LOG_NON_OVERLAPPING'),
-                                    )
-                                ) {
-                                    throw new Error(
-                                        `Error updating user worklog | ${JSON.stringify(
-                                            update.errors,
-                                        )}`,
-                                    );
-                                }
-                            }
-
-                            if (grouppedSummary.length === 1) {
-                                this.lastSavedSummary = {
-                                    ...this.lastSavedSummary,
-                                    endAt: grouppedSummary[0].endAt,
-                                };
-                            }
-
-                            grouppedSummary.shift();
-                        }
-
-                        if (grouppedSummary.length > 0) {
-                            // mutation to insert new user_work_logs
-                            const insert = await fetchGraphQLClient(
-                                process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
-                                {
-                                    token: this.token,
-                                },
-                            )<
-                                {
-                                    insert_user_work_logs: {
-                                        returning: {
-                                            id: number;
-                                        }[];
-                                    };
-                                },
-                                {
-                                    worklogs: user_work_logs_insert_input[];
-                                }
-                            >({
-                                operationAction: `
-                                mutation InsertWorklogs($worklogs: [user_work_logs_insert_input!]!) {
-                                    insert_user_work_logs(objects: $worklogs) {
-                                        returning {
-                                            id
-                                        }
-                                    }
-                                }
-                            `,
-                                variables: {
-                                    worklogs: grouppedSummary.map((summary) => ({
-                                        startAt: new Date(summary.startAt).toJSON(),
-                                        endAt: new Date(summary.endAt).toJSON(),
-                                        workDescription:
-                                            'This log was added automatically using data from the GitStart DevTime desktop app.',
-                                        ...(summary.type === 'task' ? { taskId: summary.id } : {}),
-                                        ...(summary.type === 'ticket'
-                                            ? { ticketId: summary.id }
-                                            : {}),
-                                        ...(summary.type === 'client_project'
-                                            ? { clientProjectId: summary.id }
-                                            : {}),
-                                        ...(summary.type === 'client'
-                                            ? { clientId: summary.id }
-                                            : {}),
-                                        technologyId: null, // TODO: get technology by extracting the file extension in the window title of VS Code events
-                                        workType: summary.type,
-                                        userId: user.id,
-                                        status: 'confirmed',
-                                        approvalStatus: 'auto',
-                                        billableToClient: false,
-                                        source: 'automatic from GitStart DevTime app',
-                                    })),
-                                },
-                            });
-
-                            if ((insert.errors?.length ?? 0) > 0) {
-                                // ignore the error if we've already added worklogs at those times
-                                if (
-                                    !insert.errors.find((error) =>
-                                        error.message.includes('UQ_USER_WORK_LOG_NON_OVERLAPPING'),
-                                    )
-                                ) {
-                                    throw new Error(
-                                        `Error inserting user worklog | ${JSON.stringify(
-                                            insert.errors,
-                                        )}`,
-                                    );
-                                }
-                            }
-
-                            const returningLength =
-                                insert.data.insert_user_work_logs.returning.length;
-                            this.lastSavedSummary = {
-                                ...grouppedSummary[grouppedSummary.length - 1],
-                                worklogId:
-                                    insert.data.insert_user_work_logs.returning[returningLength - 1]
-                                        .id,
-                            };
-                        }
-                    } catch (err) {
-                        if (!err.message.includes('UQ_USER_WORK_LOG_NON_OVERLAPPING')) {
-                            throw err;
-                        }
-                    }
-                }
-
-                console.log('Updating', events.length, 'events with isSummarized = true.');
-                const eventIds = events.map((event) => event.id);
-                await TrackItem.query().whereIn('id', eventIds).patch({
-                    updatedAt: new Date(),
-                    isSummarized: true,
-                });
-                this.lastSavedUserWorklogsAt = new Date();
-
-                console.log('Successfully upserted', numberOfWorklogsToUpsert, 'user worklogs');
-            } else {
-                // wait for user to go through login flow which will add a token in the db.
-                console.log('Received no token. Waiting for user to login...');
-            }
-        } catch (e) {
-            logErrors(e);
-        }
-        console.log('-------------------------');
     }
 
     private async saveUserEvents() {
@@ -445,86 +101,40 @@ export class SaveToDbJob {
             // .orWhere('updatedAt', '>=', this.lastSavedAt);
 
             console.log(items.length, `TrackItems need to be upserted to GitStart's DB`);
-            // console.log(items);
 
-            if (this.token) {
-                const user = getUserFromToken(this.token);
-                if (!user) {
-                    // TODO: use refreshToken to get new token instead of setting token to null
-                    this.token = null;
-                    await settingsService.updateLoginSettings({ token: null });
-                    throw new Error('Token Expired!');
-                }
+            if (!this.token) return;
 
-                const returned = await sendTrackItemsToDB(
-                    items,
-                    user.id,
-                    process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
-                    this.token,
-                );
+            const user = getUserFromToken(this.token);
 
-                if ((returned.errors?.length ?? 0) > 0) {
-                    throw new Error(JSON.stringify(returned.errors));
-                }
-
-                console.log('Successfully saved', items.length, `TrackItems to GitStart's DB`);
-
-                console.log('-------------------------');
-
-                console.log(
-                    returned.data.insert_user_events.returning.length,
-                    'user_events need to be linked',
-                );
-                await Promise.all(
-                    returned.data.insert_user_events.returning.map((userEvent, i) => {
-                        console.log({ userEventId: userEvent.id }, items[i].app, items[i].title);
-                        return trackItemService.updateTrackItem(
-                            { userEventId: userEvent.id },
-                            items[i].id,
-                        );
-                    }),
-                );
-
-                this.lastSavedUserEventsAt = new Date();
-
-                console.log('Successfully linked', items.length, `user_event with its TrackItem`);
-            } else {
-                // wait for user to go through login flow which will add a token in the db.
-                console.log('Received no token. Waiting for user to login...');
+            if (!user) {
+                // TODO: use refreshToken to get new token instead of setting token to null
+                this.token = null;
+                await settingsService.updateLoginSettings({ token: null });
+                throw new Error('Token Expired!');
             }
 
-            const stagingUserId = config.persisted.get('stagingUserId');
-            if (!!stagingUserId) {
-                console.log(
-                    items.length,
-                    `TrackItems need to be upserted to GitStart's Staging DB`,
-                );
-                const returnedFromStaging = await sendTrackItemsToDB(
-                    items,
-                    stagingUserId,
-                    process.env.HASURA_GRAPHQL_STAGING_ENGINE_DOMAIN,
-                    this.token,
-                    process.env.HASURA_GRAPHQL_STAGING_ENGINE_SECRET, // by providing the admin secret, it ignores the token that is provided
-                );
-                if ((returnedFromStaging.errors?.length ?? 0) > 0) {
-                    console.error('Error saving to staging DB', returnedFromStaging.errors);
-                    logService.createOrUpdateLog({
-                        type: 'WARNING',
-                        message: `Error saving to staging DB`,
-                        jsonData: JSON.stringify(returnedFromStaging.errors),
-                    });
-                } else {
-                    console.log(
-                        'Successfully saved',
-                        items.length,
-                        `TrackItems to GitStart's Staging DB`,
+            const events = this.createEventsFromTrackItems(items, user.id)
+
+            const returned = await sendTrackItemsToDB(
+                events,
+                user.id,
+                process.env.HASURA_GRAPHQL_ENGINE_DOMAIN,
+                this.token,
+            );
+
+            await Promise.all(
+                returned.data.insert_user_events.returning.map((userEvent, i) => {
+                    console.log({ userEventId: userEvent.id }, items[i].app, items[i].title);
+                    return trackItemService.updateTrackItem(
+                        { userEventId: userEvent.id },
+                        items[i].id,
                     );
-                }
-            }
+                }),
+            );
+            console.log('Successfully saved', items.length, `TrackItems to GitStart's DB`);
         } catch (e) {
             logErrors(e);
         }
-        console.log('-------------------------');
     }
 }
 
@@ -540,7 +150,7 @@ function logErrors(e: any) {
 }
 
 async function sendTrackItemsToDB(
-    items: TrackItem[],
+    events: any[],
     userId: number,
     domain: string,
     token: string,
@@ -579,23 +189,7 @@ async function sendTrackItemsToDB(
             }
         `,
         variables: {
-            userEvents: items.map((event) => {
-                return {
-                    ...(event.userEventId ? { id: event.userEventId } : {}),
-                    userId,
-                    updatedAt: new Date().toJSON(),
-                    appName: event.app,
-                    title: event.title,
-                    browserUrl: event.url,
-                    occurredAt: new Date(event.beginDate).toJSON(),
-                    duration: Math.round(
-                        (new Date(event.endDate).getTime() - new Date(event.beginDate).getTime()) /
-                            1000,
-                    ),
-                    pollInterval: appConstants.TIME_TRACKING_JOB_INTERVAL / 1000, // ms to sec
-                    eventType: event.url ? 'browse_url' : 'app_use',
-                };
-            }),
+            userEvents: events,
         },
     });
     return returned;

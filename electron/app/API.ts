@@ -10,6 +10,7 @@ import { appConstants } from './app-constants';
 import { logService } from './services/log-service';
 import { whitelistService } from './services/whitelist-service';
 import { blacklistService } from './services/blacklist-service';
+import { entitiesService } from './services/entities-service';
 
 const settingsActions = {
     fetchAnalyserSettingsJsonString: async (req, res) => {
@@ -134,6 +135,19 @@ const trackItemActions = {
     },
 };
 
+const entityActions = {
+    getAllUserEntities: async ({ payload }, res) => {
+        const data = await entitiesService.getAll();
+
+        res.send(data);
+    },
+    changeSelectedEntity: async ({ payload }, res) => {
+        const result = await settingsService.upsertEntitySetting(payload);
+
+        res.send(result);
+    }
+};
+
 export const initIpcActions = () =>
     setupMainHandler(
         { ipcMain } as any,
@@ -143,6 +157,7 @@ export const initIpcActions = () =>
             ...logsActions,
             ...trackItemActions,
             ...listActions,
+            ...entityActions
         },
         true,
     );
