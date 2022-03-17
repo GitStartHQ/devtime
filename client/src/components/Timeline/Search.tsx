@@ -7,6 +7,7 @@ import { getTodayTimerange } from './timeline.utils';
 import { Logger } from '../../logger';
 import { useStoreActions, useStoreState } from '../../store/easyPeasy';
 import { TIMERANGE_MODE_TODAY } from '../../store/mainStore';
+import Activities from '../Activity';
 
 const { RangePicker } = DatePicker;
 
@@ -123,6 +124,9 @@ export const Search = memo(() => {
                         Today
                     </Button>
                 </Tooltip>
+            </Box>
+            <Box p={1}>
+                <Activities />
             </Box>
             {showLiveViewButton && (
                 <Box p={1}>

@@ -4,6 +4,7 @@ import { TrackItem } from '../models/TrackItem';
 import { logService } from './log-service';
 
 const LOGIN_SETTINGS = 'LOGIN_SETTINGS';
+const ENTITY_SETTINGS = 'ENTITY_SETTINGS';
 type LoginSettings = {
     token: string;
 };
@@ -87,6 +88,25 @@ export class SettingsService {
     async updateLoginSettings(data: Partial<LoginSettings>) {
         const jsonStr = JSON.stringify(data);
         return this.updateByName(LOGIN_SETTINGS, jsonStr);
+    }
+
+    async upsertEntitySetting(data: { projectId: number; entityId: number; entityType: string }) {
+        const setting = await Setting.query().where('name', ENTITY_SETTINGS);
+
+        if (setting[0]) {
+            await this.updateByName(ENTITY_SETTINGS, JSON.stringify(data));
+        } else {
+            await Setting.query().insert({ name: ENTITY_SETTINGS, jsonData: data});
+        }
+    }
+
+    async fetchEntitySettings() {
+        let item = await this.findByName(ENTITY_SETTINGS);
+        if (!item || !item.jsonData) {
+            return null;
+        }
+
+        return item.jsonData;
     }
 
     isObject(val) {
