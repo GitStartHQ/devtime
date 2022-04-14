@@ -23,7 +23,7 @@ export const AppForm = () => {
         saveIsLoggingEnabled(value);
     };
 
-    const appName = process.env.REACT_APP_NAME;
+    const appName = process.env.REACT_APP_NAME ?? 'devtime';
     const platform = (window as any).platform;
 
     const linuxPath = `~/.config/${appName}/logs/main.log`;
