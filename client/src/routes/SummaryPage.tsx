@@ -1,19 +1,21 @@
 import React from 'react';
-import { MainLayout } from '../components/MainLayout/MainLayout';
 import { SummaryCalendar } from '../components/SummaryCalendar/SummaryCalendar';
 import { SummaryProvider } from '../SummaryContext';
 import { LineChart } from '../components/LineCharts/LineChart';
-import { LineChartBox } from '../components/LineCharts/LineCharts.styles';
+import { VStack } from '@chakra-ui/react';
+import { CardBox } from '../components/CardBox';
 
-export function SummaryPage({ location }: any) {
+export function SummaryPage() {
     return (
-        <MainLayout location={location}>
-            <SummaryProvider>
-                <SummaryCalendar />
-                <LineChartBox>
+        <SummaryProvider>
+            <VStack p={4} spacing={4}>
+                <CardBox p={0} position="relative" overflow="hidden">
+                    <SummaryCalendar />
+                </CardBox>
+                <CardBox position="relative" title="Online time" divider>
                     <LineChart />
-                </LineChartBox>
-            </SummaryProvider>
-        </MainLayout>
+                </CardBox>
+            </VStack>
+        </SummaryProvider>
     );
 }

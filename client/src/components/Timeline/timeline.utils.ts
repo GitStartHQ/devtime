@@ -1,20 +1,21 @@
 import _ from 'lodash';
 import moment from 'moment';
 import { convertDate } from '../../constants';
+import { TrackItemType } from '../../enum/TrackItemType';
 
 export const filterItems = (timeItems, visibleTimerange) =>
-    timeItems.filter(item => {
+    timeItems.filter((item) => {
         const itemBegin = convertDate(item.beginDate);
         const itemEnd = convertDate(item.endDate);
-        const visBegin = visibleTimerange[0];
-        const visEnd = visibleTimerange[1];
-        return itemBegin.isBetween(visBegin, visEnd) && itemEnd.isBetween(visBegin, visEnd);
+        const [visBegin, visEnd] = visibleTimerange;
+
+        return itemBegin.isBetween(visBegin, visEnd) || itemEnd.isBetween(visBegin, visEnd);
     });
 
-export const aggregateappItems = items => {
+export const aggregateappItems = (items) => {
     _.reduce(
         items,
-        result => {
+        (result) => {
             const currVal = result; // result[value.id](result[value.id] || (result[value.id] = [])).push(key);
             return currVal;
         },
@@ -64,13 +65,28 @@ export const getCenteredTimerange = (timerange, visibleTimerange, middleTime) =>
     return [beginDate, endDate];
 };
 
-export const getUniqueAppNames = appItems =>
+export const getUniqueAppNames = (appItems) =>
     _(appItems)
         .map('app')
         .uniq()
-        .orderBy([app => app.toLowerCase()])
-        .map(app => ({
+        .orderBy([(app) => app.toLowerCase()])
+        .map((app) => ({
             text: app,
             value: app,
         }))
         .value();
+
+export const getTrackItemOrder = (type: string) => {
+    if (type === TrackItemType.AppTrackItem) {
+        return 1;
+    }
+    if (type === TrackItemType.StatusTrackItem) {
+        return 2;
+    }
+    if (type === TrackItemType.LogTrackItem) {
+        return 3;
+    }
+    return 0;
+};
+
+export const getTrackItemOrderFn = (d) => getTrackItemOrder(d.taskName);

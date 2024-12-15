@@ -1,10 +1,13 @@
-import { Flex } from 'reflexbox';
-import { Button, Card, Tooltip } from 'antd';
-import { InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { AiOutlineInfoCircle } from 'react-icons/ai';
 import React, { useState, useEffect } from 'react';
 import { AnalyserFormItem } from './AnalyserFormItem';
 import { fetchAnalyserSettings, saveAnalyserSettings } from '../../services/settings.api';
 import { useStoreState } from '../../store/easyPeasy';
+import { Tooltip } from '@chakra-ui/react';
+import { Flex } from '@chakra-ui/react';
+import { HStack } from '@chakra-ui/react';
+import { Button } from '@chakra-ui/react';
+import { CardBox } from '../CardBox';
 
 const defaultAnalyserSettings = [
     { findRe: '\\w+-\\d+.*JIRA', takeTitle: '', takeGroup: '\\w+-\\d+', enabled: true },
@@ -14,7 +17,7 @@ const defaultAnalyserSettings = [
 const emptyItem = { findRe: '', takeTitle: '', takeGroup: '', enabled: false };
 
 export const AnalyserForm = () => {
-    const timeItems = useStoreState(state => state.timeItems);
+    const timeItems = useStoreState((state) => state.timeItems);
     const { appItems } = timeItems;
     const [analyserItems, setAnalyserItems] = useState<any>([]);
 
@@ -27,12 +30,12 @@ export const AnalyserForm = () => {
         fetchSettings();
     }, []);
 
-    const removeItem = index => () => {
+    const removeItem = (index) => () => {
         analyserItems.splice(index, 1);
         setAnalyserItems([...analyserItems]);
         saveAnalyserSettings([...analyserItems]);
     };
-    const saveItem = index => data => {
+    const saveItem = (index) => (data) => {
         analyserItems[index] = data;
         setAnalyserItems([...analyserItems]);
         saveAnalyserSettings([...analyserItems]);
@@ -44,15 +47,25 @@ export const AnalyserForm = () => {
 
     const setDefaults = () => {
         setAnalyserItems([...analyserItems, ...defaultAnalyserSettings]);
+        saveAnalyserSettings([...analyserItems, ...defaultAnalyserSettings]);
     };
 
     return (
-        <Card
+        <CardBox
             title="Analyser settings"
+            divider
             extra={
-                <Tooltip placement="left" title="Notify if title equals these analyser items.">
-                    <InfoCircleOutlined style={{ fontSize: 20, color: 'primary' }} />
-                </Tooltip>
+                <HStack>
+                    <Button onClick={setDefaults} variant="ghost">
+                        Add sample values
+                    </Button>
+
+                    <Tooltip placement="left" label="Notify if title equals these analyser items.">
+                        <span>
+                            <AiOutlineInfoCircle style={{ fontSize: 20, color: 'primary' }} />
+                        </span>
+                    </Tooltip>
+                </HStack>
             }
         >
             {analyserItems.map((item, index) => (
@@ -64,13 +77,11 @@ export const AnalyserForm = () => {
                     analyserItem={item}
                 />
             ))}
-            <Flex p={1} justifyContent="flex-end">
-                <Button type="primary" shape="circle" icon={<PlusOutlined />} onClick={addItem} />
+            <Flex py={3} justifyContent="flex-end">
+                <Button onClick={addItem} aria-label="Add New Item">
+                    Add New Item
+                </Button>
             </Flex>
-
-            <Flex p={1} justifyContent="flex-start">
-                <Button onClick={setDefaults}>Add sample values</Button>
-            </Flex>
-        </Card>
+        </CardBox>
     );
 };

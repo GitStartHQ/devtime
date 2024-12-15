@@ -1,32 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { MainLayout } from '../components/MainLayout/MainLayout';
-import { Flex, Box } from 'reflexbox';
-import { Input, Spin, Button } from 'antd';
-import { useFormState } from 'react-use-form-state';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { searchFromItems, exportFromItems } from '../services/trackItem.api';
 import moment from 'moment';
 import { TrackItemType } from '../enum/TrackItemType';
 import { SearchResults } from '../components/SearchResults/SearchResults';
 import { SearchOptions } from '../components/SearchResults/SearchOptions';
-import { Spinner } from '../components/Timeline/Timeline.styles';
 
-export function SearchPage({ location }: any) {
-    const [formState, { text }] = useFormState({ search: '' });
+import { Box, Flex } from '@chakra-ui/react';
+import { Input } from '@chakra-ui/react';
+import { Button } from '@chakra-ui/react';
+import { Loader } from '../components/Timeline/Loader';
+import { CardBox } from '../components/CardBox';
+import { TypeSelect } from '../components/TypeSelect';
+import { HStack } from '@chakra-ui/react';
 
-    const [isLoading, setIsLoading] = useState<any>(false);
-    const [searchPaging, setSearchPaging] = useState<any>({ pageSize: 20, page: 1 });
+export function SearchPage() {
+    const fetchIdRef = useRef(0);
+    const [searchText, setSearchText] = useState('');
+    const [taskName, setTaskName] = useState(TrackItemType.AppTrackItem);
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [searchPaging, setSearchPaging] = useState({ pageSize: 20, pageIndex: 0 });
 
     const [searchResult, setSearchResult] = useState([]);
-    const [timerange, setTimerange] = useState([
-        moment()
-            .startOf('day')
-            .subtract(10, 'days'),
-        moment().endOf('day'),
-    ]);
-
-    const taskName = TrackItemType.AppTrackItem;
+    const [total, setTotal] = useState(0);
+    const [timerange, setTimerange] = useState([moment().startOf('day').subtract(10, 'days'), moment().endOf('day')]);
 
     const loadItems = async (searchStr, firstPage = false) => {
+        const fetchId = ++fetchIdRef.current;
         setIsLoading(true);
         const [from, to] = timerange;
         const items = await searchFromItems({
@@ -37,14 +37,44 @@ export function SearchPage({ location }: any) {
             paging: searchPaging,
         });
 
-        setSearchResult(items);
-        console.info('searching with pa', searchPaging, items);
+        const sum = await searchFromItems({
+            from,
+            to,
+            taskName,
+            searchStr,
+            paging: {},
+            sumTotal: true,
+        });
+
+        console.info('Sum data', sum);
+        const sumColumn = 'sum(endDate-beginDate)';
+
+        // Only update the data if this is the latest fetch
+        if (fetchId === fetchIdRef.current) {
+            setSearchResult(items);
+            setTotal(sum.results.length > 0 ? sum.results[0][sumColumn] : 0);
+            console.info('searching with paging', searchPaging, timerange, items);
+        }
+
         setIsLoading(false);
 
         return;
     };
 
-    const exportItems = async searchStr => {
+    const fetchData = useCallback(({ pageSize, pageIndex, sortBy }) => {
+        const pageProps = { pageSize, pageIndex };
+        if (sortBy && sortBy.length > 0) {
+            const [sort] = sortBy;
+
+            pageProps['sortByKey'] = sort.id;
+            pageProps['sortByOrder'] = sort.desc ? 'desc' : 'asc';
+        }
+
+        setSearchPaging(pageProps);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const exportItems = async (searchStr) => {
         setIsLoading(true);
         const [from, to] = timerange;
         await exportFromItems({
@@ -59,61 +89,53 @@ export function SearchPage({ location }: any) {
     };
 
     useEffect(() => {
-        loadItems(formState.values.search);
+        console.info('searchPaging in page changed');
+        loadItems(searchText);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchPaging]);
 
-    const onSubmit = event => {
-        setSearchPaging({ ...searchPaging, page: 1 });
-
+    const onSubmit = (event) => {
         event.preventDefault();
+        setSearchPaging({ ...searchPaging, pageIndex: 0 });
     };
 
     return (
-        <MainLayout location={location}>
-            <form onSubmit={onSubmit}>
-                <Flex p={1} width={1} flexDirection="column">
-                    <Flex p={1}>
-                        <Input
-                            placeholder="Search from all items"
-                            {...text({
-                                name: 'search',
-                            })}
-                        />
-                        <Box px={2}>
-                            <Button type="primary" htmlType="submit">
-                                Search
-                            </Button>
-                        </Box>
-
-                        <Box px={2}>
-                            <Button
-                                onClick={() => {
-                                    exportItems(formState.values.search);
-                                }}
-                                type="default"
-                            >
-                                Export to CSV
-                            </Button>
-                        </Box>
-                    </Flex>
-                    <Box p={1}>
+        <form onSubmit={onSubmit}>
+            <Flex p={3} flexDirection="column">
+                <CardBox position="relative" p={0}>
+                    {isLoading && <Loader />}
+                    <Box p={4} pb={0}>
                         <SearchOptions setTimerange={setTimerange} timerange={timerange} />
                     </Box>
-                    <Box p={1}>
-                        {isLoading && (
-                            <Spinner>
-                                <Spin />
-                            </Spinner>
-                        )}
-                        <SearchResults
-                            searchResult={searchResult}
-                            searchPaging={searchPaging}
-                            setSearchPaging={setSearchPaging}
+                    <HStack p={4}>
+                        <TypeSelect value={taskName} onChange={(event) => setTaskName(event.target.value)} />
+                        <Input
+                            placeholder="Search from all items"
+                            value={searchText}
+                            onChange={(event) => setSearchText(event.target.value)}
                         />
-                    </Box>
-                </Flex>
-            </form>
-        </MainLayout>
+
+                        <Button type="submit" bg="brand.mainColor" w="100px">
+                            Search
+                        </Button>
+
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                exportItems(searchText);
+                            }}
+                        >
+                            Export to CSV
+                        </Button>
+                    </HStack>
+                    <SearchResults
+                        searchResult={searchResult}
+                        fetchData={fetchData}
+                        pageIndex={searchPaging.pageIndex}
+                        total={total}
+                    />
+                </CardBox>
+            </Flex>
+        </form>
     );
 }

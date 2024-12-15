@@ -1,19 +1,16 @@
-import { Layout } from 'antd';
+import { Box } from '@chakra-ui/react';
+
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { HeaderMenu } from './HeaderMenu';
 
-const { Footer, Content } = Layout;
-
-export function MainLayout({ children, location }: any) {
+export function MainLayout() {
     return (
-        <div>
-            <Layout>
-                <HeaderMenu location={location} />
-                <Content>{children}</Content>
-                <Footer>
-                    <a href="https://github.com/MayGo">MayGo</a> @ 2021
-                </Footer>
-            </Layout>
-        </div>
+        <Box w="100%">
+            <HeaderMenu />
+            <Box>
+                <Outlet />
+            </Box>
+        </Box>
     );
 }
