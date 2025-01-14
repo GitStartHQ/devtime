@@ -1,15 +1,14 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { analytics } from './analytics';
+import { sendPageEvent } from './useGoogleAnalytics.utils';
 
 export function useGoogleAnalytics() {
     const location = useLocation();
 
     useEffect(() => {
-        analytics.page({
-            path: location.pathname,
-            search: location.search,
-        });
+        console.info('Setting page', location.pathname);
+
+        sendPageEvent(location.pathname, location.search);
     }, [location]);
 }

@@ -1,7 +1,4 @@
-import { Box } from 'reflexbox';
 import React, { useEffect, useState, useCallback, memo } from 'react';
-import randomcolor from 'randomcolor';
-import { TimelineItemEdit } from '../components/Timeline/TimelineItemEdit';
 import { TrayLayout } from '../components/TrayLayout/TrayLayout';
 import { TrayList } from '../components/TrayList/TrayList';
 import { EventEmitter } from '../services/EventEmitter';
@@ -11,18 +8,34 @@ import { Logger } from '../logger';
 import { useWindowFocused } from '../hooks/windowFocusedHook';
 import { throttle } from 'lodash';
 import deepEqual from 'fast-deep-equal/es6';
-import { analytics } from '../analytics';
-
-const EMPTY_SELECTED_ITEM = {};
+import { Box } from '@chakra-ui/react';
+import { Divider } from '@chakra-ui/react';
+import { ITrackItem } from '../@types/ITrackItem';
+import { OnlineChart } from '../components/TrayLayout/OnlineChart';
+import { useStoreActions, useStoreState } from '../store/easyPeasy';
+import { useInterval } from '../hooks/intervalHook';
+import { TrayItemEdit } from './tray/TrayItemEdit';
+import { sendOpenTrayEvent } from '../useGoogleAnalytics.utils';
 
 const EMPTY_ARRAY = [];
+const BG_SYNC_DELAY_MS = 10000;
 
 const TrayAppPageTemp = () => {
+    const fetchTimerange = useStoreActions((actions) => actions.fetchTimerange);
+    const bgSyncInterval = useStoreActions((actions) => actions.bgSyncInterval);
+
+    useInterval(() => {
+        bgSyncInterval();
+    }, [BG_SYNC_DELAY_MS]);
+
+    useEffect(() => {
+        fetchTimerange();
+    }, [fetchTimerange]);
+
     const [loading, setLoading] = useState(true);
 
-    const [selectedItem, setSelectedItem] = useState(EMPTY_SELECTED_ITEM);
-    const [runningLogItem, setRunningLogItem] = useState();
-    const [lastLogItems, setLastLogItems] = useState(EMPTY_ARRAY);
+    const [runningLogItem, setRunningLogItem] = useState<any>();
+    const [lastLogItems, setLastLogItems] = useState<ITrackItem[]>(EMPTY_ARRAY);
 
     const { windowIsActive } = useWindowFocused();
 
@@ -33,6 +46,7 @@ const TrayAppPageTemp = () => {
             const areEqual = deepEqual(items, lastLogItems);
 
             if (!areEqual) {
+                console.info('setLastLogItems', items);
                 setLastLogItems(items);
             }
         } catch (e) {
@@ -41,23 +55,24 @@ const TrayAppPageTemp = () => {
         setLoading(false);
     };
 
-    const loadLastLogItemsThrottled = throttle(loadLastLogItems, 4000, { trailing: false });
+    const loadLastLogItemsThrottled = throttle(loadLastLogItems, 1000);
 
     useEffect(() => {
         if (windowIsActive) {
             Logger.debug('Window active:', windowIsActive);
-            setSelectedItem(s => ({ ...s, color: randomcolor() }));
-            loadLastLogItemsThrottled();
-            analytics.track('trayOpened', { version: process.env.REACT_APP_VERSION });
+            // loadLastLogItemsThrottled();
+
+            sendOpenTrayEvent();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [windowIsActive]);
 
     useEffect(() => {
-        const eventLogItemStarted = (_, logItem) => {
-            Logger.debug('log-trackItem-started:', JSON.parse(logItem));
-            setRunningLogItem(JSON.parse(logItem));
-            loadLastLogItemsThrottled();
+        const eventLogItemStarted = (logItem) => {
+            const newItem: ITrackItem = JSON.parse(logItem);
+            Logger.debug('log-trackItem-started:', newItem);
+            setRunningLogItem(newItem);
+            setLastLogItems((items) => [...items, newItem]);
         };
 
         EventEmitter.on('log-item-started', eventLogItemStarted);
@@ -69,21 +84,22 @@ const TrayAppPageTemp = () => {
     }, []);
 
     useEffect(() => {
-        loadLastLogItemsThrottled();
-        getRunningLogItem().then(logItem => {
+        // loadLastLogItemsThrottled();
+        loadLastLogItems();
+        getRunningLogItem().then((logItem) => {
             setRunningLogItem(logItem);
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const startNewLogItemEvent = useCallback((trackItem: any, colorScope: any) => {
+    const startNewLogItemEvent = useCallback((trackItem: any) => {
         startNewLogItem(trackItem);
         loadLastLogItemsThrottled();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const stopRunningLogItemEvent = useCallback(
-        (trackItem: any, colorScope: any) => {
+        () => {
             if (runningLogItem) {
                 stopRunningLogItem(runningLogItem.id);
                 loadLastLogItemsThrottled();
@@ -96,17 +112,17 @@ const TrayAppPageTemp = () => {
         [runningLogItem, setRunningLogItem],
     );
 
+    const timeItems = useStoreState((state) => state.timeItems);
+    const { statusItems } = timeItems;
     return (
         <TrayLayout>
-            {!runningLogItem && (
-                <Box pt={2}>
-                    <TimelineItemEdit
-                        selectedTimelineItem={selectedItem}
-                        trayEdit
-                        saveTimelineItem={startNewLogItem}
-                    />
-                </Box>
-            )}
+            <Box p={4}>
+                <TrayItemEdit saveTimelineItem={startNewLogItem} />
+            </Box>
+            <Box px={4} pb={4}>
+                <OnlineChart items={statusItems} />
+            </Box>
+            <Divider borderColor="gray.200" />
             <TrayList
                 lastLogItems={lastLogItems}
                 runningLogItem={runningLogItem}

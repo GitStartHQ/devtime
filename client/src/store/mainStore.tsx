@@ -1,15 +1,10 @@
 import { createStore, Action, action, Thunk, thunk, thunkOn, ThunkOn } from 'easy-peasy';
 import moment, { Moment } from 'moment';
 import { ITrackItem } from '../@types/ITrackItem';
-import {
-    getTodayTimerange,
-    getCenteredTimerange,
-    setDayFromTimerange,
-} from '../components/Timeline/timeline.utils';
+import { getTodayTimerange, getCenteredTimerange, setDayFromTimerange } from '../components/Timeline/timeline.utils';
 import { Logger } from '../logger';
 import { findAllDayItemsForEveryTrack } from '../services/trackItem.api';
 import { addToTimelineItems } from '../timeline.util';
-import { PRIMARY_COLOR_VAR, setThemeVars, THEMES } from './theme.util';
 
 const emptyTimeItems = {
     appItems: [],
@@ -27,12 +22,6 @@ const defaultVisibleTimerange = getCenteredTimerange(
 export const TIMERANGE_MODE_TODAY = 'TODAY';
 
 export interface StoreModel {
-    theme: any;
-    setTheme: Action<StoreModel, any>;
-    setThemeWithVariables: Thunk<StoreModel, any>;
-
-    setThemeByName: Thunk<StoreModel, string>;
-
     selectedTimelineItem: null | ITrackItem;
     setSelectedTimelineItem: Action<StoreModel, ITrackItem | null>;
 
@@ -68,25 +57,6 @@ export interface StoreModel {
 }
 
 const mainStore = createStore<StoreModel>({
-    theme: { name: THEMES.LIGHT, variables: setThemeVars(THEMES.LIGHT) },
-    setTheme: action((state, payload) => {
-        state.theme = payload;
-    }),
-
-    setThemeWithVariables: thunk(async (actions, theme) => {
-        const variables = setThemeVars(theme.name, theme.variables);
-        actions.setTheme({ variables, name: theme.name });
-    }),
-
-    setThemeByName: thunk(async (actions, name, { getState, getStoreState }) => {
-        const { theme } = getState();
-        // Not overriding primary color set from color picket
-        const variables = setThemeVars(name, {
-            [PRIMARY_COLOR_VAR]: theme.variables[PRIMARY_COLOR_VAR],
-        });
-        actions.setTheme({ variables, name });
-    }),
-
     selectedTimelineItem: null,
     setSelectedTimelineItem: action((state, payload) => {
         state.selectedTimelineItem = payload;
@@ -128,8 +98,8 @@ const mainStore = createStore<StoreModel>({
     }),
 
     onSetTimerange: thunkOn(
-        actions => actions.setTimerange,
-        async actions => {
+        (actions) => actions.setTimerange,
+        async (actions) => {
             actions.fetchTimerange();
         },
     ),
@@ -138,10 +108,7 @@ const mainStore = createStore<StoreModel>({
         const { timerange, visibleTimerange } = getState();
         Logger.debug('Loading timerange:', JSON.stringify(timerange));
         actions.setIsLoading(true);
-        const { appItems, statusItems, logItems } = await findAllDayItemsForEveryTrack(
-            timerange[0],
-            timerange[1],
-        );
+        const { appItems, statusItems, logItems } = await findAllDayItemsForEveryTrack(timerange[0], timerange[1]);
 
         actions.setTimeItems({ appItems, statusItems, logItems });
         actions.setVisibleTimerange(setDayFromTimerange(visibleTimerange, timerange));
@@ -169,22 +136,13 @@ const mainStore = createStore<StoreModel>({
         actions.setTimeItems(addToTimelineItems(timeItems, { appItems, statusItems, logItems }));
     }),
     bgSyncInterval: thunk(async (actions, _, { getState }) => {
-        const {
-            isLoading,
-            timerange,
-            visibleTimerange,
-            timerangeMode,
-            lastRequestTime,
-            liveView,
-        } = getState();
+        const { isLoading, timerange, visibleTimerange, timerangeMode, lastRequestTime, liveView } = getState();
         if (!isLoading) {
             if (timerangeMode === TIMERANGE_MODE_TODAY && liveView) {
                 actions.bgSync(lastRequestTime);
                 actions.setLastRequestTime(moment());
 
-                actions.setVisibleTimerange(
-                    getCenteredTimerange(timerange, visibleTimerange, lastRequestTime),
-                );
+                actions.setVisibleTimerange(getCenteredTimerange(timerange, visibleTimerange, lastRequestTime));
 
                 if (lastRequestTime.day() !== timerange[1].day()) {
                     Logger.debug('Day changed. Setting today as timerange.');

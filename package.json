@@ -6,5 +6,6 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:MayGo/tockler.git"
-  }
+  },
+  "packageManager": "yarn@4.5.1"
 }
